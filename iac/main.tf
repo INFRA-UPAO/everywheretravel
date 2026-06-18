@@ -9,3 +9,11 @@ resource "null_resource" "prod_protection" {
     command = "echo 'APLICANDO EN PRODUCCIÓN — workspace: ${terraform.workspace}'"
   }
 }
+
+module "kms" {
+  source    = "./modules/kms"
+  providers = { aws = aws.main }
+
+  prefix = local.prefix
+  env    = local.env
+}
