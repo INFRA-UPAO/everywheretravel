@@ -17,7 +17,7 @@ provider "null" {
 
 provider "aws" {
   region  = var.aws_region
-  profile = "gpdev"
+
   alias   = "main"
 
   default_tags {
@@ -31,7 +31,7 @@ provider "aws" {
 
 provider "aws" {
   region  = "us-east-1"
-  profile = "gpdev"
+
   alias   = "edge"
 
   default_tags {
