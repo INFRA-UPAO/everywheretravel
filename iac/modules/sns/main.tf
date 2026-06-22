@@ -9,7 +9,9 @@ locals {
 resource "aws_sns_topic" "alerts" {
   name = "${var.prefix}-alerts"
 
-  fifo_topic = false
+  fifo_topic       = false
+  kms_master_key_id = "alias/aws/sns"
+
   tags = {
     Name = "${var.prefix}-alerts"
   }
