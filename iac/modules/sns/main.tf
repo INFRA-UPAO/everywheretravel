@@ -56,3 +56,13 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   endpoint                        = var.alert_email
   confirmation_timeout_in_minutes = 1
 }
+
+# TOPIC 2 — BACKUP ALERTS
+
+resource "aws_sns_topic" "backup_alerts" {
+  name = "${var.prefix}-backup-alerts"
+
+  tags = {
+    Name = "${var.prefix}-backup-alerts"
+  }
+}
