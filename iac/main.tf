@@ -17,3 +17,11 @@ module "kms" {
   prefix = local.prefix
   env    = local.env
 }
+
+module "sns" {
+  source    = "./modules/sns"
+  providers = { aws = aws.main }
+
+  prefix      = local.prefix
+  alert_email = var.alert_email
+}
