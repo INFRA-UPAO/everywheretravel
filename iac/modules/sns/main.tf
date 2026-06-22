@@ -66,3 +66,36 @@ resource "aws_sns_topic" "backup_alerts" {
     Name = "${var.prefix}-backup-alerts"
   }
 }
+
+resource "aws_sns_topic_policy" "backup_alerts" {
+  arn = aws_sns_topic.backup_alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${local.account_id}:root"
+        }
+        Action   = "sns:*"
+        Resource = aws_sns_topic.backup_alerts.arn
+      },
+      {
+        Sid    = "AllowBackupPublish"
+        Effect = "Allow"
+        Principal = {
+          Service = "backup.amazonaws.com"
+        }
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.backup_alerts.arn
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = local.account_id
+          }
+        }
+      }
+    ]
+  })
+}
