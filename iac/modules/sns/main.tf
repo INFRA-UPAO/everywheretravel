@@ -99,3 +99,10 @@ resource "aws_sns_topic_policy" "backup_alerts" {
     ]
   })
 }
+
+resource "aws_sns_topic_subscription" "backup_alerts_email" {
+  topic_arn                       = aws_sns_topic.backup_alerts.arn
+  protocol                        = "email"
+  endpoint                        = var.alert_email
+  confirmation_timeout_in_minutes = 1
+}
