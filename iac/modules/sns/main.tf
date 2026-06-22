@@ -64,6 +64,8 @@ resource "aws_sns_topic_subscription" "alerts_email" {
 resource "aws_sns_topic" "backup_alerts" {
   name = "${var.prefix}-backup-alerts"
 
+  kms_master_key_id = "alias/aws/sns"
+
   tags = {
     Name = "${var.prefix}-backup-alerts"
   }
