@@ -14,3 +14,38 @@ resource "aws_sns_topic" "alerts" {
     Name = "${var.prefix}-alerts"
   }
 }
+
+# TOPIC 1 — ALERTS
+
+resource "aws_sns_topic_policy" "alerts" {
+  arn = aws_sns_topic.alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${local.account_id}:root"
+        }
+        Action   = "sns:*"
+        Resource = aws_sns_topic.alerts.arn
+      },
+      {
+        Sid    = "AllowCloudWatchPublish"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudwatch.amazonaws.com"
+        }
+        Action   = "sns:Publish"
+        Resource = aws_sns_topic.alerts.arn
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = local.account_id
+          }
+        }
+      }
+    ]
+  })
+}
