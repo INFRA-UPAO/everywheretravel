@@ -73,6 +73,63 @@ Eso descarga el estado compartido desde S3 y ya pueden trabajar sincronizados co
 
 ---
 
+## Workspaces de Terraform
+
+Este proyecto usa **Terraform workspaces** para separar los entornos (dev, staging, prod, etc.). Cada workspace mantiene su propio archivo de estado, asi que los cambios en un entorno no afectan a los demas.
+
+### Verificar en que workspace estas
+
+**Antes de correr cualquier comando** (`plan`, `apply`, `destroy`, etc.), verifica siempre en que workspace te encuentras:
+
+```bash
+terraform workspace show
+```
+
+### Listar workspaces disponibles
+
+```bash
+terraform workspace list
+```
+
+El workspace activo aparece marcado con un `*`.
+
+### Cambiar de workspace
+
+```bash
+terraform workspace select dev
+```
+
+### Crear un nuevo workspace
+
+```bash
+terraform workspace new nombre-del-workspace
+```
+
+> **IMPORTANTE:** Si haces `terraform apply` sin verificar el workspace, podrias aplicar cambios en el entorno equivocado (por ejemplo, modificar produccion cuando querias tocar dev). Siempre corre `terraform workspace show` antes de cualquier operacion destructiva.
+
+### Archivos de variables por entorno (.tfvars)
+
+Los archivos `.tfvars` contienen las variables especificas de cada entorno (region, dominio, nombre del proyecto, etc.) y **no se suben al repositorio** por seguridad (estan en `.gitignore`).
+
+Para obtener el contenido, pidelo al lider del equipo. Luego crea los archivos manualmente en la carpeta `iac/tfvars/`:
+
+```
+iac/tfvars/
+├── dev.tfvars
+├── prod.tfvars
+```
+
+### Ejecutar plan o apply con variables por entorno
+
+Siempre especifica el archivo `.tfvars` correspondiente al workspace en el que estas:
+
+```bash
+terraform plan -var-file="tfvars/dev.tfvars"
+terraform apply -var-file="tfvars/dev.tfvars"
+```
+
+---
+
 ## Estructura del proyecto
 
 ```
