@@ -16,8 +16,6 @@ resource "aws_sns_topic" "alerts" {
   }
 }
 
-# TOPIC 1 — ALERTS
-
 resource "aws_sns_topic_policy" "alerts" {
   arn = aws_sns_topic.alerts.arn
 
@@ -57,8 +55,6 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   endpoint                        = var.alert_email
   confirmation_timeout_in_minutes = 10
 }
-
-# TOPIC 2 — BACKUP ALERTS
 
 resource "aws_sns_topic" "backup_alerts" {
   name = "${var.prefix}-backup-alerts"
