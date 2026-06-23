@@ -56,7 +56,7 @@ resource "aws_sns_topic_subscription" "alerts_email" {
   topic_arn                       = aws_sns_topic.alerts.arn
   protocol                        = "email"
   endpoint                        = var.alert_email
-  confirmation_timeout_in_minutes = 1
+  confirmation_timeout_in_minutes = 10
 }
 
 # TOPIC 2 — BACKUP ALERTS
