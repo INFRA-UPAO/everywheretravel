@@ -319,3 +319,134 @@ resource "aws_iam_role_policies_exclusive" "lambda_docgen" {
   role_name    = aws_iam_role.lambda_docgen.name
   policy_names = [aws_iam_role_policy.lambda_docgen.name]
 }
+
+# ROL 4 — AWS BACKUP
+
+data "aws_iam_policy_document" "backup_trust" {
+  statement {
+    sid     = "AllowBackupAssume"
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["backup.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+}
+
+resource "aws_iam_role" "backup" {
+  name               = "${var.prefix}-backup-role"
+  assume_role_policy = data.aws_iam_policy_document.backup_trust.json
+
+  tags = {
+    Name = "${var.prefix}-backup-role"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "backup_policy" {
+  role       = aws_iam_role.backup.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
+}
+
+resource "aws_iam_role_policy_attachment" "backup_restore_policy" {
+  role       = aws_iam_role.backup.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForRestores"
+}
+
+resource "aws_iam_role_policy_attachment" "backup_s3_policy" {
+  role       = aws_iam_role.backup.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSBackupServiceRolePolicyForS3Backup"
+}
+
+resource "aws_iam_role_policy_attachments_exclusive" "backup" {
+  role_name = aws_iam_role.backup.name
+  policy_arns = [
+    aws_iam_role_policy_attachment.backup_policy.policy_arn,
+    aws_iam_role_policy_attachment.backup_restore_policy.policy_arn,
+    aws_iam_role_policy_attachment.backup_s3_policy.policy_arn
+  ]
+}
+
+data "aws_iam_policy_document" "backup_kms" {
+  statement {
+    sid    = "KMSBackupAccess"
+    effect = "Allow"
+    actions = [
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:DescribeKey",
+      "kms:GenerateDataKey",
+      "kms:Decrypt"
+    ]
+    resources = [var.kms_backups_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "backup_kms" {
+  name   = "${var.prefix}-backup-kms-policy"
+  role   = aws_iam_role.backup.id
+  policy = data.aws_iam_policy_document.backup_kms.json
+}
+
+resource "aws_iam_role_policies_exclusive" "backup" {
+  role_name    = aws_iam_role.backup.name
+  policy_names = [aws_iam_role_policy.backup_kms.name]
+}
+
+# ROL 5 — LAMBDA@EDGE
+
+data "aws_iam_policy_document" "lambda_edge_trust" {
+  statement {
+    sid     = "AllowLambdaAndEdgeLambdaAssume"
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type = "Service"
+      identifiers = [
+        "lambda.amazonaws.com",
+        "edgelambda.amazonaws.com"
+      ]
+    }
+  }
+}
+
+resource "aws_iam_role" "lambda_edge" {
+  name               = "${var.prefix}-lambda-edge-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_edge_trust.json
+
+  tags = {
+    Name = "${var.prefix}-lambda-edge-role"
+  }
+}
+
+data "aws_iam_policy_document" "lambda_edge_permissions" {
+  statement {
+    sid    = "CloudWatchLogsEdge"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:*:${local.account_id}:log-group:/aws/lambda/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "lambda_edge" {
+  name   = "${var.prefix}-lambda-edge-policy"
+  role   = aws_iam_role.lambda_edge.id
+  policy = data.aws_iam_policy_document.lambda_edge_permissions.json
+}
+
+resource "aws_iam_role_policies_exclusive" "lambda_edge" {
+  role_name    = aws_iam_role.lambda_edge.name
+  policy_names = [aws_iam_role_policy.lambda_edge.name]
+}
