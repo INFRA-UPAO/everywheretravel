@@ -148,3 +148,22 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_vpce_ecr" {
   ip_protocol                  = "tcp"
   description                  = "HTTPS hacia VPC Endpoints ECR"
 }
+
+# SG RDS
+resource "aws_vpc_security_group_ingress_rule" "rds_from_ecs" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.ecs_task.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  description                  = "PostgreSQL desde ECS Tasks"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "rds_from_lambda" {
+  security_group_id            = aws_security_group.rds.id
+  referenced_security_group_id = aws_security_group.lambda.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  description                  = "PostgreSQL desde Lambda doc-generante"
+}
