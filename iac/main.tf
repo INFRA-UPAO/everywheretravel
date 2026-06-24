@@ -38,3 +38,15 @@ module "iam" {
   kms_ecr_arn     = module.kms.kms_ecr_arn
   kms_backups_arn = module.kms.kms_backups_arn
 }
+
+module "security_groups" {
+  source = "./modules/security-groups"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix   = local.prefix
+  vpc_id   = module.networking.vpc_id
+  vpc_cidr = var.vpc_cidr
+}
