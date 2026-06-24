@@ -9,12 +9,15 @@ locals {
 resource "aws_sns_topic" "alerts" {
   name = "${var.prefix}-alerts"
 
+  fifo_topic       = false
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
     Name = "${var.prefix}-alerts"
   }
 }
+
+# TOPIC 1 — ALERTS
 
 resource "aws_sns_topic_policy" "alerts" {
   arn = aws_sns_topic.alerts.arn
