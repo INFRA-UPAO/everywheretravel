@@ -38,3 +38,15 @@ module "iam" {
   kms_ecr_arn     = module.kms.kms_ecr_arn
   kms_backups_arn = module.kms.kms_backups_arn
 }
+
+module "ecr" {
+  source = "./modules/ecr"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix                 = local.prefix
+  kms_ecr_arn            = module.kms.kms_ecr_arn
+  ecs_execution_role_arn = module.iam.ecs_execution_role_arn
+}
