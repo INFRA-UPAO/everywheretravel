@@ -90,3 +90,24 @@ resource "aws_vpc_security_group_egress_rule" "alb_to_ecs" {
   ip_protocol                  = "tcp"
   description                  = "Trafico hacia ECS Tasks en puerto 8080"
 }
+
+# SG ECS TASK
+# INBOUND
+resource "aws_vpc_security_group_ingress_rule" "ecs_from_alb" {
+  security_group_id            = aws_security_group.ecs_task.id
+  referenced_security_group_id = aws_security_group.alb.id
+  from_port                    = 8080
+  to_port                      = 8080
+  ip_protocol                  = "tcp"
+  description                  = "Trafico desde ALB interno"
+}
+
+# EGRESS
+resource "aws_vpc_security_group_egress_rule" "ecs_to_rds" {
+  security_group_id            = aws_security_group.ecs_task.id
+  referenced_security_group_id = aws_security_group.rds.id
+  from_port                    = 5432
+  to_port                      = 5432
+  ip_protocol                  = "tcp"
+  description                  = "PostgreSQL hacia RDS"
+}
