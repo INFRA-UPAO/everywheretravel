@@ -50,3 +50,15 @@ module "ecr" {
   kms_ecr_arn            = module.kms.kms_ecr_arn
   ecs_execution_role_arn = module.iam.ecs_execution_role_arn
 }
+
+module "networking" {
+  source = "./modules/networking"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix            = local.prefix
+  vpc_cidr          = var.vpc_cidr
+  nat_gateway_count = local.nat_gateway_count
+}
