@@ -9,7 +9,7 @@ terraform {
 
 provider "aws" {
   region  = "us-east-2"
-  profile = "gpdev"
+  profile = "gcdev"
 }
 
 resource "aws_s3_bucket" "tfstate" {
