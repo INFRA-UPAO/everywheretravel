@@ -205,3 +205,24 @@ resource "aws_vpc_security_group_egress_rule" "lambda_to_vpce_logs" {
   ip_protocol                  = "tcp"
   description                  = "HTTPS hacia VPC Endpoint CloudWatch Logs"
 }
+
+# SG VPC LINK
+# INBOUND
+resource "aws_vpc_security_group_ingress_rule" "vpclink_from_apigw" {
+  security_group_id = aws_security_group.vpclink.id
+  cidr_ipv4         = var.vpc_cidr
+  from_port         = 8080
+  to_port           = 8080
+  ip_protocol       = "tcp"
+  description       = "Trafico desde API Gateway via VPC Link (CIDR del VPC)"
+}
+
+# EGRESS
+resource "aws_vpc_security_group_egress_rule" "vpclink_to_alb" {
+  security_group_id            = aws_security_group.vpclink.id
+  referenced_security_group_id = aws_security_group.alb.id
+  from_port                    = 8080
+  to_port                      = 8080
+  ip_protocol                  = "tcp"
+  description                  = "Trafico hacia ALB interno"
+}
