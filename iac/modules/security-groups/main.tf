@@ -37,3 +37,35 @@ resource "aws_security_group" "vpclink" {
 
   tags = { Name = "${var.prefix}-sg-vpclink" }
 }
+
+resource "aws_security_group" "vpce_sqs" {
+  name        = "${var.prefix}-sg-vpce-sqs"
+  description = "Security Group para VPC Endpoint Interface SQS"
+  vpc_id      = var.vpc_id
+
+  tags = { Name = "${var.prefix}-sg-vpce-sqs" }
+}
+
+resource "aws_security_group" "vpce_sm" {
+  name        = "${var.prefix}-sg-vpce-sm"
+  description = "Security Group para VPC Endpoint Interface Secrets Manager"
+  vpc_id      = var.vpc_id
+
+  tags = { Name = "${var.prefix}-sg-vpce-sm" }
+}
+
+resource "aws_security_group" "vpce_logs" {
+  name        = "${var.prefix}-sg-vpce-logs"
+  description = "Security Group para VPC Endpoint Interface CloudWatch Logs"
+  vpc_id      = var.vpc_id
+
+  tags = { Name = "${var.prefix}-sg-vpce-logs" }
+}
+
+resource "aws_security_group" "vpce_ecr" {
+  name        = "${var.prefix}-sg-vpce-ecr"
+  description = "Security Group para VPC Endpoints Interface ECR API y DkR"
+  vpc_id      = var.vpc_id
+
+  tags = { Name = "${var.prefix}-sg-vpce-ecr" }
+}
