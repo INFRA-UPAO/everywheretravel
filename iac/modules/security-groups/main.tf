@@ -21,3 +21,19 @@ resource "aws_security_group" "rds" {
 
   tags = { Name = "${var.prefix}-sg-rds" }
 }
+
+resource "aws_security_group" "lambda" {
+  name        = "${var.prefix}-sg-lambda"
+  description = "Security Group para Lambda doc-generante (en VPC)"
+  vpc_id      = var.vpc_id
+
+  tags = { Name = "${var.prefix}-sg-lambda" }
+}
+
+resource "aws_security_group" "vpclink" {
+  name        = "${var.prefix}-sg-vpclink"
+  description = "Security Group para el VPC Link de API Gateway"
+  vpc_id      = var.vpc_id
+
+  tags = { Name = "${var.prefix}-sg-vpclink" }
+}
