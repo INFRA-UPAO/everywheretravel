@@ -7,7 +7,7 @@ locals {
 # CLOUDWATCH LOG GROUP
 resource "aws_cloudwatch_log_group" "ecs" {
   name              = "/aws/ecs/${var.prefix}/monolito"
-  retention_in_days = 30
+  retention_in_days = 365
   kms_key_id        = var.kms_logs_arn
 
   tags = {
@@ -43,15 +43,17 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 
 # ALB — INTERNO
 resource "aws_lb" "main" {
+  # checkov:skip=CKV2_AWS_20:ALB interno - solo recibe tráfico de API Gateway via VPC Link
   name               = "${var.prefix}-alb"
   internal           = true
   load_balancer_type = "application"
   security_groups    = [var.sg_alb_id]
   subnets            = var.private_app_subnet_ids
 
-  idle_timeout = 60
-
+  idle_timeout                     = 60
   enable_cross_zone_load_balancing = true
+  drop_invalid_header_fields       = true
+  enable_deletion_protection       = terraform.workspace == prod ? true : false
 
   access_logs {
     bucket  = var.s3_access_logs_bucket
@@ -65,6 +67,7 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "main" {
+  # checkov:skip=CKV_AWS_378:Target group HTTP interno - comunicación dentro de VPC
   name        = "${var.prefix}-ecs-tg"
   port        = var.ecs_app_port
   protocol    = "HTTP"
@@ -99,6 +102,8 @@ data "aws_vpc" "current" {
 
 # ALB LISTENER
 resource "aws_lb_listener" "main" {
+  # checkov:skip=CKV_AWS_2:Listener HTTP interno - tráfico viene de API Gateway via VPC Link
+  # checkov:skip=CKV_AWS_103:Listener HTTP interno - TLS se maneja en CloudFront y API Gateway
   load_balancer_arn = aws_lb.main.arn
   port              = var.ecs_app_port
   protocol          = "HTTP"

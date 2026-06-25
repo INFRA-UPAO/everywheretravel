@@ -5,9 +5,10 @@ locals {
 }
 
 # CW LOG GROUP — ACCESS LOGS
+#FIX CKV_AWS_338	aws_cloudwatch_log_group.api_access_logs	Retención de logs (mínimo 365)
 resource "aws_cloudwatch_log_group" "api_access_logs" {
   name              = "/aws/apigateway/${var.prefix}/access-logs"
-  retention_in_days = 30
+  retention_in_days = 365
   kms_key_id        = var.kms_logs_arn
 
   tags = {

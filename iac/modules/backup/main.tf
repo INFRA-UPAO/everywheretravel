@@ -56,17 +56,6 @@ resource "aws_backup_vault_notifications" "primary" {
   ]
 }
 
-resource "aws_backup_vault" "cross_region" {
-  provider = aws.edge
-  count    = var.is_prod ? 1 : 0
-
-  name = "${var.prefix}-backup-vault-cross-region"
-
-  tags = {
-    Name = "${var.prefix}-backup-vault-cross-region"
-  }
-}
-
 resource "aws_backup_plan" "main" {
   name = "${var.prefix}-backup-plan"
 
@@ -81,18 +70,6 @@ resource "aws_backup_plan" "main" {
 
     lifecycle {
       delete_after = 35
-    }
-
-    dynamic "copy_action" {
-      for_each = var.is_prod ? [1] : []
-
-      content {
-        destination_vault_arn = aws_backup_vault.cross_region[0].arn
-
-        lifecycle {
-          delete_after = 30
-        }
-      }
     }
 
     recovery_point_tags = {
