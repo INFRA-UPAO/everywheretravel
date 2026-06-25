@@ -66,16 +66,3 @@ resource "aws_route53_record" "zoho_dkim" {
     ignore_changes = [records]
   }
 }
-
-# Verificación de dominio Zoho.
-# Zoho la requiere para confirmar que eres el propietario
-# del dominio antes de habilitar el correo.
-resource "aws_route53_record" "zoho_verification" {
-  count   = var.is_prod ? 1 : 0
-  zone_id = local.zone_id
-  name    = "everywheretravel.online"
-  type    = "TXT"
-  ttl     = 300
-
-  records = [var.zoho_verification_token]
-}
