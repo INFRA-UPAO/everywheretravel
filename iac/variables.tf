@@ -55,3 +55,15 @@ variable "lambda_timeout" {
   type        = number
   default     = 30
 }
+
+variable "zoho_verification_token" {
+  description = "Token TXT de verificación de dominio Zoho"
+  type        = string
+  default     = ""
+}
+
+variable "zoho_dkim_cname_value" {
+  description = "Valor CNAME para DKIM de Zoho"
+  type        = string
+  default     = ""
+}
