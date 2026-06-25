@@ -213,15 +213,62 @@ resource "aws_default_security_group" "default" {
 }
 
 # FIX CKV2_AWS_11 — VPC Flow Logs
-resource "aws_flow_log" "main" {
-    vpc_id          = aws_vpc.main.id
-    traffic_type    = "ALL"
-    iam_role_arn    = var.flow_log_role_arn
-    log_destination = var.flow_log_group_arn
+# TODO: mover el IAM role y CloudWatch Log Group a un modulo de observability
+# cuando se implemente. Por ahora se crean aqui para que el flow log funcione.
+resource "aws_cloudwatch_log_group" "flow_logs" {
+  name              = "/aws/vpc/flow-logs/${var.prefix}"
+  retention_in_days = 365
 
-    tags = {
-        Name = "${var.prefix}-vpc-flow-log"
-    }
+  tags = {
+    Name = "${var.prefix}-vpc-flow-logs"
+  }
+}
+
+resource "aws_iam_role" "flow_logs" {
+  name = "${var.prefix}-vpc-flow-logs"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "vpc-flow-logs.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Name = "${var.prefix}-vpc-flow-logs"
+  }
+}
+
+resource "aws_iam_role_policy" "flow_logs" {
+  name = "${var.prefix}-vpc-flow-logs"
+  role = aws_iam_role.flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams"
+      ]
+      Resource = "${aws_cloudwatch_log_group.flow_logs.arn}:*"
+    }]
+  })
+}
+
+resource "aws_flow_log" "main" {
+  vpc_id          = aws_vpc.main.id
+  traffic_type    = "ALL"
+  iam_role_arn    = aws_iam_role.flow_logs.arn
+  log_destination = aws_cloudwatch_log_group.flow_logs.arn
+
+  tags = {
+    Name = "${var.prefix}-vpc-flow-log"
+  }
 }
 
 # NETWORK ACLs
