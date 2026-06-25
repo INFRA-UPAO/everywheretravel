@@ -82,4 +82,18 @@ resource "aws_cognito_user_pool_client" "main" {
     id_token      = "minutes"
     refresh_token = "days"
   }
+
+  allowed_oauth_flows                  = ["code"]
+  allowed_oauth_flows_user_pool_client = true
+  allowed_oauth_scopes                 = ["openid", "email", "profile"]
+
+  callback_urls = [
+    "https://${var.domain_name}/callback",
+    "http://localhost:4200/callback" # devs
+  ]
+
+  logout_urls = [
+    "https://${var.domain_name}/logout",
+    "http://localhost:4200/logout"
+  ]
 }
