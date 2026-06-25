@@ -295,17 +295,29 @@ data "aws_iam_policy_document" "lambda_docgen_permissions" {
   }
 
   statement {
-    sid    = "VPCNetworkInterface"
+    sid    = "VPCDescribeOnly"
     effect = "Allow"
     actions = [
-      "ec2:CreateNetworkInterface",
       "ec2:DescribeNetworkInterfaces",
-      "ec2:DeleteNetworkInterface",
       "ec2:DescribeSubnets",
       "ec2:DescribeSecurityGroups",
       "ec2:DescribeVpcs"
     ]
     resources = ["*"]
+  }
+
+  statement {
+    sid    = "VPCNetworkInterfaceWrite"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateNetworkInterface",
+      "ec2:DeleteNetworkInterface"
+    ]
+    resources = [
+      "arn:aws:ec2:${local.region}:${local.account_id}:network-interface/*",
+      "arn:aws:ec2:${local.region}:${local.account_id}:subnet/*",
+      "arn:aws:ec2:${local.region}:${local.account_id}:security-group/*"
+    ]
   }
 }
 
