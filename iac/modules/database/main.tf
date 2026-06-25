@@ -2,7 +2,7 @@
 resource "random_password" "db" {
   length           = 16
   special          = true
-  override_special = "!#$%^&*-_=+?@"
+  override_special = "!#$%^&*-_=+?"
   min_upper        = 1
   min_lower        = 1
   min_numeric      = 1
@@ -81,14 +81,14 @@ resource "aws_db_instance" "main" {
   performance_insights_retention_period = 7
   enabled_cloudwatch_logs_exports       = ["postgresql"]
   # Fix CKV_AWS_161: habilitar IAM authentication para acceso granular sin passwords.
-  iam_database_authentication_enabled   = true
+  iam_database_authentication_enabled = true
   # Fix CKV_AWS_118: habilitar enhanced monitoring con intervalo de 60s.
-  monitoring_interval                   = 60
-  monitoring_role_arn                   = aws_iam_role.rds_monitoring.arn
-  deletion_protection                   = true
-  skip_final_snapshot                   = !var.db_multi_az
-  final_snapshot_identifier             = var.db_multi_az ? "${var.prefix}-rds-final-snapshot" : null
-  copy_tags_to_snapshot                 = true
+  monitoring_interval       = 60
+  monitoring_role_arn       = aws_iam_role.rds_monitoring.arn
+  deletion_protection       = true
+  skip_final_snapshot       = !var.db_multi_az
+  final_snapshot_identifier = var.db_multi_az ? "${var.prefix}-rds-final-snapshot" : null
+  copy_tags_to_snapshot     = true
 
   tags = {
     Name = "${var.prefix}-rds"

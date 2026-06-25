@@ -1,5 +1,6 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
+data "aws_elb_service_account" "main" {}
 
 locals {
   account_id = data.aws_caller_identity.current.account_id
@@ -398,10 +399,11 @@ data "aws_iam_policy_document" "access_logs_policy" {
     sid    = "AllowALBLogging"
     effect = "Allow"
     principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main.arn]
     }
-    actions   = ["s3:PutObject"]
+    actions = ["s3:PutObject"]
+
     resources = ["${aws_s3_bucket.access_logs.arn}/alb/*"]
     condition {
       test     = "StringEquals"
