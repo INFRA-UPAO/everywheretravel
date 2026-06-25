@@ -321,7 +321,8 @@ resource "aws_s3_bucket_logging" "waf_logs" {
 
 resource "aws_s3_bucket" "access_logs" {
   # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
-  # checkov:skip=CKV_AWS_18: No se activa access logging sobre el propio bucket de logs para evitar bucles infinitos.
+  # checkov:skip=CKV_AWS_18: No se activa access logging sobre el propio bucket para evitar bucles.
+  # checkov:skip=CKV_AWS_145: SSE-S3 (AES256) es intencional por compatibilidad con entrega de logs (ej. ALB).
   bucket        = "${var.prefix}-access-logs"
   force_destroy = false
 
