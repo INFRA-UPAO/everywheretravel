@@ -1,5 +1,6 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
+data "aws_elb_service_account" "main" {}
 
 locals {
   account_id = data.aws_caller_identity.current.account_id
@@ -246,7 +247,7 @@ resource "aws_s3_bucket_policy" "docs" {
 # BUCKET 3 — WAF LOGS
 
 resource "aws_s3_bucket" "waf_logs" {
-  # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
+  # checkov:skip=CKV_AWS_144: La replicacion cross-region no es requerida para el RTO/RPO de este proyecto.
   bucket        = "aws-waf-logs-${var.prefix}"
   force_destroy = false
 
@@ -340,8 +341,15 @@ resource "aws_s3_bucket_notification" "access_logs_events" {
 resource "aws_s3_bucket_ownership_controls" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
   rule {
-    object_ownership = "BucketOwnerEnforced"
+    object_ownership = "BucketOwnerPreferred"
   }
+}
+
+resource "aws_s3_bucket_acl" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  acl    = "log-delivery-write"
+
+  depends_on = [aws_s3_bucket_ownership_controls.access_logs]
 }
 
 resource "aws_s3_bucket_public_access_block" "access_logs" {
@@ -391,10 +399,11 @@ data "aws_iam_policy_document" "access_logs_policy" {
     sid    = "AllowALBLogging"
     effect = "Allow"
     principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
+      type        = "AWS"
+      identifiers = [data.aws_elb_service_account.main.arn]
     }
-    actions   = ["s3:PutObject"]
+    actions = ["s3:PutObject"]
+
     resources = ["${aws_s3_bucket.access_logs.arn}/alb/*"]
     condition {
       test     = "StringEquals"
@@ -409,8 +418,6 @@ data "aws_iam_policy_document" "access_logs_policy" {
     }
   }
 
-  # S3 access logging escribe via logging.s3.amazonaws.com.
-  # SourceArn limita a solo el bucket de docs, no cualquier bucket.
   statement {
     sid    = "AllowS3AccessLogging"
     effect = "Allow"

@@ -311,7 +311,9 @@ data "aws_iam_policy_document" "lambda_docgen_permissions" {
     effect = "Allow"
     actions = [
       "ec2:CreateNetworkInterface",
-      "ec2:DeleteNetworkInterface"
+      "ec2:DeleteNetworkInterface",
+      "ec2:AttachNetworkInterface",
+      "ec2:DetachNetworkInterface"
     ]
     resources = [
       "arn:aws:ec2:${local.region}:${local.account_id}:network-interface/*",

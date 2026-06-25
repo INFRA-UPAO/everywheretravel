@@ -31,7 +31,16 @@ resource "aws_sns_topic_policy" "alerts" {
         Principal = {
           AWS = "arn:aws:iam::${local.account_id}:root"
         }
-        Action   = "sns:*"
+        Action = [
+          "SNS:GetTopicAttributes",
+          "SNS:SetTopicAttributes",
+          "SNS:AddPermission",
+          "SNS:RemovePermission",
+          "SNS:DeleteTopic",
+          "SNS:Subscribe",
+          "SNS:ListSubscriptionsByTopic",
+          "SNS:Publish"
+        ]
         Resource = aws_sns_topic.alerts.arn
       },
       {
@@ -40,7 +49,7 @@ resource "aws_sns_topic_policy" "alerts" {
         Principal = {
           Service = "cloudwatch.amazonaws.com"
         }
-        Action   = "sns:Publish"
+        Action   = "SNS:Publish"
         Resource = aws_sns_topic.alerts.arn
         Condition = {
           StringEquals = {
@@ -81,7 +90,16 @@ resource "aws_sns_topic_policy" "backup_alerts" {
         Principal = {
           AWS = "arn:aws:iam::${local.account_id}:root"
         }
-        Action   = "sns:*"
+        Action = [
+          "SNS:GetTopicAttributes",
+          "SNS:SetTopicAttributes",
+          "SNS:AddPermission",
+          "SNS:RemovePermission",
+          "SNS:DeleteTopic",
+          "SNS:Subscribe",
+          "SNS:ListSubscriptionsByTopic",
+          "SNS:Publish"
+        ]
         Resource = aws_sns_topic.backup_alerts.arn
       },
       {
@@ -90,7 +108,7 @@ resource "aws_sns_topic_policy" "backup_alerts" {
         Principal = {
           Service = "backup.amazonaws.com"
         }
-        Action   = "sns:Publish"
+        Action   = "SNS:Publish"
         Resource = aws_sns_topic.backup_alerts.arn
         Condition = {
           StringEquals = {
