@@ -80,3 +80,13 @@ resource "aws_apigatewayv2_integration" "alb" {
   timeout_milliseconds   = 29000
   payload_format_version = "2.0"
 }
+
+# RUTA — ANY /{proxy+}
+resource "aws_apigatewayv2_route" "proxy" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "ANY /{proxy+}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+
+  target = "integrations/${aws_apigatewayv2_integration.alb.id}"
+}
