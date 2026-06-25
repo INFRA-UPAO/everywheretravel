@@ -35,11 +35,12 @@ module "backup" {
     aws.edge = aws.edge
   }
 
-  prefix             = local.prefix
-  is_prod            = local.is_prod
-  kms_backups_arn    = module.kms.kms_backups_arn
-  backup_role_arn    = module.iam.backup_role_arn
-  rds_arn            = module.database.rds_arn
-  s3_docs_bucket_arn = module.s3.s3_docs_bucket_arn
-  sns_backup_arn     = module.sns.sns_backup_arn
+  prefix               = local.prefix
+  is_prod              = local.is_prod
+  kms_backups_arn      = module.kms.kms_backups_arn
+  kms_backups_edge_arn = module.kms.kms_backups_edge_arn
+  backup_role_arn      = module.iam.backup_role_arn
+  rds_arn              = module.database.rds_arn
+  s3_docs_bucket_arn   = module.s3.s3_docs_bucket_arn
+  sns_backup_arn       = module.sns.sns_backup_arn
 }
