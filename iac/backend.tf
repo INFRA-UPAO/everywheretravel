@@ -5,6 +5,5 @@ terraform {
     region       = "us-east-2"
     use_lockfile = true
     encrypt      = true
-    profile      = "gpdev"
   }
 }
