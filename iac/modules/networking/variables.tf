@@ -9,6 +9,11 @@ variable "vpc_cidr" {
     default     = "10.0.0.0/16"
 }
 
+variable "kms_logs_arn" {
+  description = "ARN de la llave KMS para cifrado de CloudWatch Logs"
+  type        = string
+}
+
 variable "nat_gateway_count" {
     description = "Número de NAT Gateways: 1 (dev) o 2 (prod)"
     type        = number
