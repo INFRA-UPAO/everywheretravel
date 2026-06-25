@@ -2,6 +2,9 @@ data "aws_availability_zones" "available" {
     state = "available"
 }
 
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
 locals {
     az_a = data.aws_availability_zones.available.names[0]
     az_b = data.aws_availability_zones.available.names[1]
@@ -215,9 +218,11 @@ resource "aws_default_security_group" "default" {
 # FIX CKV2_AWS_11 — VPC Flow Logs
 # TODO: mover el IAM role y CloudWatch Log Group a un modulo de observability
 # cuando se implemente. Por ahora se crean aqui para que el flow log funcione.
+# Fix CKV_AWS_158: cifrado KMS para el log group de flow logs.
 resource "aws_cloudwatch_log_group" "flow_logs" {
   name              = "/aws/vpc/flow-logs/${var.prefix}"
   retention_in_days = 365
+  kms_key_id        = var.kms_logs_arn
 
   tags = {
     Name = "${var.prefix}-vpc-flow-logs"
@@ -233,6 +238,10 @@ resource "aws_iam_role" "flow_logs" {
       Effect    = "Allow"
       Principal = { Service = "vpc-flow-logs.amazonaws.com" }
       Action    = "sts:AssumeRole"
+      Condition = {
+        StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
+        ArnLike      = { "aws:SourceArn" = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:vpc/${aws_vpc.main.id}" }
+      }
     }]
   })
 
