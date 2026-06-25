@@ -13,8 +13,8 @@ resource "aws_vpc" "main" {
     enable_dns_support   = true
     enable_dns_hostnames = true
 
-tags = {
-    Name = "${var.prefix}-vpc"
+    tags = {
+        Name = "${var.prefix}-vpc"
     }
 }
 
@@ -203,6 +203,27 @@ resource "aws_route_table_association" "private_data_az_b" {
     route_table_id = aws_route_table.private_data.id
 }
 
+# FIX CKV2_AWS_12 — Bloquear default security group
+resource "aws_default_security_group" "default" {
+    vpc_id = aws_vpc.main.id
+
+    tags = {
+        Name = "${var.prefix}-default-sg-restricted"
+    }
+}
+
+# FIX CKV2_AWS_11 — VPC Flow Logs
+resource "aws_flow_log" "main" {
+    vpc_id          = aws_vpc.main.id
+    traffic_type    = "ALL"
+    iam_role_arn    = var.flow_log_role_arn
+    log_destination = var.flow_log_group_arn
+
+    tags = {
+        Name = "${var.prefix}-vpc-flow-log"
+    }
+}
+
 # NETWORK ACLs
 resource "aws_network_acl" "public" {
     vpc_id = aws_vpc.main.id
@@ -229,7 +250,8 @@ resource "aws_network_acl_rule" "public_inbound_https" {
     to_port        = 443
 }
 
-resource "aws_network_acl_rule" "public_inbound_ephemeral" {
+# FIX CKV_AWS_231 — Partir ephemeral excluyendo puerto 3389 (RDP)
+resource "aws_network_acl_rule" "public_inbound_ephemeral_lower" {
     network_acl_id = aws_network_acl.public.id
     rule_number    = 200
     egress         = false
@@ -237,6 +259,17 @@ resource "aws_network_acl_rule" "public_inbound_ephemeral" {
     rule_action    = "allow"
     cidr_block     = "0.0.0.0/0"
     from_port      = 1024
+    to_port        = 3388
+}
+
+resource "aws_network_acl_rule" "public_inbound_ephemeral_upper" {
+    network_acl_id = aws_network_acl.public.id
+    rule_number    = 201
+    egress         = false
+    protocol       = "tcp"
+    rule_action    = "allow"
+    cidr_block     = "0.0.0.0/0"
+    from_port      = 3390
     to_port        = 65535
 }
 
@@ -276,6 +309,7 @@ resource "aws_network_acl" "private_app" {
     }
 }
 
+# FIX CKV_AWS_352 — Acotar al puerto de la app (8080) en vez de 0-65535
 resource "aws_network_acl_rule" "private_app_inbound_vpc" {
     network_acl_id = aws_network_acl.private_app.id
     rule_number    = 100
@@ -283,11 +317,12 @@ resource "aws_network_acl_rule" "private_app_inbound_vpc" {
     protocol       = "tcp"
     rule_action    = "allow"
     cidr_block     = var.vpc_cidr
-    from_port      = 0
-    to_port        = 65535
+    from_port      = 8080
+    to_port        = 8080
 }
 
-resource "aws_network_acl_rule" "private_app_inbound_return" {
+# FIX CKV_AWS_231 — Partir ephemeral excluyendo puerto 3389 (RDP)
+resource "aws_network_acl_rule" "private_app_inbound_return_lower" {
     network_acl_id = aws_network_acl.private_app.id
     rule_number    = 200
     egress         = false
@@ -295,6 +330,17 @@ resource "aws_network_acl_rule" "private_app_inbound_return" {
     rule_action    = "allow"
     cidr_block     = "0.0.0.0/0"
     from_port      = 1024
+    to_port        = 3388
+}
+
+resource "aws_network_acl_rule" "private_app_inbound_return_upper" {
+    network_acl_id = aws_network_acl.private_app.id
+    rule_number    = 201
+    egress         = false
+    protocol       = "tcp"
+    rule_action    = "allow"
+    cidr_block     = "0.0.0.0/0"
+    from_port      = 3390
     to_port        = 65535
 }
 
