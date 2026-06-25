@@ -90,3 +90,39 @@ resource "aws_apigatewayv2_route" "proxy" {
 
   target = "integrations/${aws_apigatewayv2_integration.alb.id}"
 }
+
+# STAGE — $default
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.main.id
+  name        = "$default"
+  auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit   = 500
+    throttling_rate_limit    = 100
+    detailed_metrics_enabled = true
+    logging_level            = "INFO"
+  }
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_access_logs.arn
+
+    format = jsonencode({
+      requestId        = "$context.requestId"
+      ip               = "$context.identity.sourceIp"
+      httpMethod       = "$context.httpMethod"
+      routeKey         = "$context.routeKey"
+      status           = "$context.status"
+      protocol         = "$context.protocol"
+      responseLength   = "$context.responseLength"
+      integrationError = "$context.integrationErrorMessage"
+      latency          = "$context.responseLatency"
+      userAgent        = "$context.identity.userAgent"
+      requestTime      = "$context.requestTime"
+    })
+  }
+
+  tags = {
+    Name = "${var.prefix}-api-stage"
+  }
+}
