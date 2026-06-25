@@ -107,3 +107,9 @@ resource "aws_cognito_user_pool_client" "main" {
   enable_token_revocation       = true
   prevent_user_existence_errors = "ENABLED"
 }
+
+# HOSTED UI DOMAIN
+resource "aws_cognito_user_pool_domain" "main" {
+  domain       = var.prefix
+  user_pool_id = aws_cognito_user_pool.main.id
+}
