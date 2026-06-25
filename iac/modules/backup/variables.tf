@@ -32,3 +32,8 @@ variable "sns_backup_arn" {
     description = "ARN del SNS Topic backup-alerts"
     type        = string
 }
+
+variable "kms_backups_edge_arn" {
+    description = "ARN de la llave KMS para el vault cross-region"
+    type        = string
+}
