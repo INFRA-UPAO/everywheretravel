@@ -136,8 +136,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "docs" {
 
   depends_on = [aws_s3_bucket_versioning.docs]
 
-  # PDFs generados: mover a IA (menor costo) a los 90 días,
-  # eliminar al año. Son documentos históricos que se consultan poco.
   rule {
     id     = "generated-docs-lifecycle"
     status = "Enabled"
@@ -156,7 +154,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "docs" {
     }
   }
 
-  # Archivos temporales: eliminar al día.
   rule {
     id     = "temp-cleanup"
     status = "Enabled"
@@ -186,7 +183,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "docs" {
   }
 }
 
-# Logs de acceso al bucket de docs.
 resource "aws_s3_bucket_logging" "docs" {
   bucket = aws_s3_bucket.docs.id
 
@@ -194,10 +190,8 @@ resource "aws_s3_bucket_logging" "docs" {
   target_prefix = "docs-bucket/"
 }
 
-# Bucket policy: solo ECS y Lambda desde el VPC pueden acceder.
-# AWS Backup también necesita acceso para poder hacer backups.
+
 data "aws_iam_policy_document" "docs_bucket_policy" {
-  # ECS Task Role puede subir y leer PDFs.
   statement {
     sid    = "AllowECSAccess"
     effect = "Allow"
@@ -215,7 +209,6 @@ data "aws_iam_policy_document" "docs_bucket_policy" {
     resources = ["${aws_s3_bucket.docs.arn}/*"]
   }
 
-  # Lambda doc-generante puede subir PDFs a generated/.
   statement {
     sid    = "AllowLambdaAccess"
     effect = "Allow"
@@ -229,8 +222,6 @@ data "aws_iam_policy_document" "docs_bucket_policy" {
     resources = ["${aws_s3_bucket.docs.arn}/generated/*"]
   }
 
-  # AWS Backup necesita acceso completo a los objetos para
-  # poder hacer el backup y restaurar correctamente.
   statement {
     sid    = "AllowBackupAccess"
     effect = "Allow"
@@ -255,8 +246,6 @@ data "aws_iam_policy_document" "docs_bucket_policy" {
     ]
   }
 
-  # Deniega todo acceso que no use HTTPS.
-  # Garantiza que los datos viajan cifrados en tránsito (RNF02).
   statement {
     sid    = "DenyNonHTTPS"
     effect = "Deny"
@@ -284,15 +273,12 @@ resource "aws_s3_bucket_policy" "docs" {
   bucket = aws_s3_bucket.docs.id
   policy = data.aws_iam_policy_document.docs_bucket_policy.json
 
-  # La policy depende de que el block public access esté activo.
   depends_on = [aws_s3_bucket_public_access_block.docs]
 }
 
 # BUCKET 3 — WAF LOGS
 
 resource "aws_s3_bucket" "waf_logs" {
-  # aws-waf-logs- es el prefijo OBLIGATORIO que exige AWS.
-  # Sin este prefijo WAF no puede escribir en el bucket.
   bucket        = "aws-waf-logs-${var.prefix}"
   force_destroy = false
 
@@ -382,8 +368,15 @@ resource "aws_s3_bucket_ownership_controls" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
 
   rule {
-    object_ownership = "BucketOwnerEnforced"
+    object_ownership = "BucketOwnerPreferred"
   }
+}
+
+resource "aws_s3_bucket_acl" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  acl    = "log-delivery-write"
+
+  depends_on = [aws_s3_bucket_ownership_controls.access_logs]
 }
 
 resource "aws_s3_bucket_public_access_block" "access_logs" {
@@ -395,8 +388,6 @@ resource "aws_s3_bucket_public_access_block" "access_logs" {
   restrict_public_buckets = true
 }
 
-# SSE-S3 (AES-256) — no SSE-KMS.
-# Los servicios de log delivery no pueden usar CMKs.
 resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
   bucket = aws_s3_bucket.access_logs.id
 
@@ -434,10 +425,7 @@ resource "aws_s3_bucket_versioning" "access_logs" {
   }
 }
 
-# Policy para permitir que los servicios de AWS escriban sus logs.
 data "aws_iam_policy_document" "access_logs_policy" {
-  # ALB escribe access logs via delivery.logs.amazonaws.com.
-  # Condición SourceAccount previene confused deputy.
   statement {
     sid    = "AllowALBLogging"
     effect = "Allow"
@@ -463,8 +451,6 @@ data "aws_iam_policy_document" "access_logs_policy" {
     }
   }
 
-  # S3 access logging escribe via logging.s3.amazonaws.com.
-  # SourceArn limita a solo el bucket de docs, no cualquier bucket.
   statement {
     sid    = "AllowS3AccessLogging"
     effect = "Allow"
