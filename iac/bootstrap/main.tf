@@ -31,12 +31,16 @@ resource "aws_s3_bucket_versioning" "tfstate" {
   }
 }
 
+# Fix CKV_AWS_145: cifrado KMS en lugar de AES256.
+# Usa la llave AWS-managed (alias/aws/s3) para evitar costo de CMK.
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = "alias/aws/s3"
     }
+    bucket_key_enabled = true
   }
 }
 
