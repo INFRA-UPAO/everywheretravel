@@ -140,3 +140,21 @@ module "secrets" {
   ecs_task_role_arn      = module.iam.ecs_task_role_arn
   lambda_docgen_role_arn = module.iam.lambda_docgen_role_arn
 }
+}
+
+module "api_gateway" {
+  source = "./modules/api-gateway"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix                 = local.prefix
+  domain_name            = var.domain_name
+  cognito_issuer_url     = module.auth.cognito_issuer_url
+  cognito_app_client_id  = module.auth.cognito_app_client_id
+  alb_listener_arn       = module.compute.alb_listener_arn
+  private_app_subnet_ids = module.networking.private_app_subnet_ids
+  sg_vpclink_id          = module.security_groups.sg_vpclink_id
+  kms_logs_arn           = module.kms.kms_logs_arn
+}
