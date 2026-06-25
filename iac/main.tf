@@ -75,6 +75,18 @@ module "networking" {
   nat_gateway_count = local.nat_gateway_count
 }
 
+module "auth" {
+  source = "./modules/auth"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix      = local.prefix
+  domain_name = var.domain_name
+  env         = local.env
+}
+  
 module "database" {
   source    = "./modules/database"
   providers = { aws = aws.main }
