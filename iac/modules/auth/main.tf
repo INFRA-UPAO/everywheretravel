@@ -40,4 +40,30 @@ resource "aws_cognito_user_pool" "main" {
       sms_message   = "Tu usuario es {username} y tu contraseña es {####}"
     }
   }
+
+  schema {
+    name                = "email"
+    attribute_data_type = "String"
+    required            = true
+    mutable             = true
+
+    string_attribute_constraints {
+      min_length = 5
+      max_length = 100
+    }
+  }
+
+  email_configuration {
+    email_sending_account = "COGNITO_DEFAULT"
+  }
+
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Código de verificación - Everywhere Travel"
+    email_message        = "Tu código de verificación es {####}"
+  }
+
+  tags = {
+    Name = "${var.prefix}-user-pool"
+  }
 }
