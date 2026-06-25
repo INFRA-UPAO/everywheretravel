@@ -140,3 +140,33 @@ module "secrets" {
   ecs_task_role_arn      = module.iam.ecs_task_role_arn
   lambda_docgen_role_arn = module.iam.lambda_docgen_role_arn
 }
+
+
+module "compute" {
+  source = "./modules/compute"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix                 = local.prefix
+  private_app_subnet_ids = module.networking.private_app_subnet_ids
+  sg_alb_id              = module.security_groups.sg_alb_id
+  sg_ecs_task_id         = module.security_groups.sg_ecs_task_id
+  s3_access_logs_bucket  = module.s3.s3_access_logs_bucket
+  ecs_cpu                = local.ecs_cpu
+  ecs_memory             = local.ecs_memory
+  ecs_app_port           = var.ecs_app_port
+  ecs_min_tasks          = local.ecs_min_tasks
+  ecs_max_tasks          = local.ecs_max_tasks
+  ecs_execution_role_arn = module.iam.ecs_execution_role_arn
+  ecs_task_role_arn      = module.iam.ecs_task_role_arn
+  ecr_repo_url           = module.ecr.ecr_repo_url
+  ecr_image_tag          = "initial"
+  sqs_queue_url          = module.sqs.sqs_queue_url
+  s3_docs_bucket         = module.s3.s3_docs_bucket
+  rds_secret_arn         = module.secrets.rds_secret_arn
+  kms_logs_arn           = module.kms.kms_logs_arn
+
+  depends_on = [module.iam]
+}
