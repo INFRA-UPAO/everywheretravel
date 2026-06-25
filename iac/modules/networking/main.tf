@@ -240,7 +240,7 @@ resource "aws_iam_role" "flow_logs" {
       Action    = "sts:AssumeRole"
       Condition = {
         StringEquals = { "aws:SourceAccount" = data.aws_caller_identity.current.account_id }
-        ArnLike      = { "aws:SourceArn" = "arn:aws:ec2:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:vpc/${aws_vpc.main.id}" }
+        ArnLike      = { "aws:SourceArn" = "arn:aws:ec2:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:vpc/${aws_vpc.main.id}" }
       }
     }]
   })
