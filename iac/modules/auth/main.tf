@@ -96,4 +96,14 @@ resource "aws_cognito_user_pool_client" "main" {
     "https://${var.domain_name}/logout",
     "http://localhost:4200/logout"
   ]
+
+  explicit_auth_flows = [
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
+  ]
+
+  read_attributes               = ["email", "email_verified", "name"]
+  write_attributes              = ["email", "name"]
+  enable_token_revocation       = true
+  prevent_user_existence_errors = "ENABLED"
 }
