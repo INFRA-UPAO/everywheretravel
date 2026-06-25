@@ -329,6 +329,11 @@ resource "aws_iam_role_policy" "lambda_docgen" {
   policy = data.aws_iam_policy_document.lambda_docgen_permissions.json
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_vpc_access" {
+  role       = aws_iam_role.lambda_docgen.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
 resource "aws_iam_role_policies_exclusive" "lambda_docgen" {
   role_name    = aws_iam_role.lambda_docgen.name
   policy_names = [aws_iam_role_policy.lambda_docgen.name]
