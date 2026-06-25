@@ -12,6 +12,9 @@ provider "aws" {
 }
 
 resource "aws_s3_bucket" "tfstate" {
+  #checkov:skip=CKV_AWS_144:Cross-region replication no aplica para bucket de tfstate con versionado habilitado
+  #checkov:skip=CKV2_AWS_62:Event notifications no requeridas para bucket de gestion de estado
+  #checkov:skip=CKV_AWS_18:Access logging omitido, no existe bucket de logs en bootstrap
   bucket        = "everywhere-travel-tfstate"
   force_destroy = false
 
