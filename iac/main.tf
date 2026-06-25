@@ -38,10 +38,22 @@ module "iam" {
   kms_ecr_arn     = module.kms.kms_ecr_arn
   kms_backups_arn = module.kms.kms_backups_arn
 }
+    
+module "ecr" {
+  source = "./modules/ecr"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix                 = local.prefix
+  kms_ecr_arn            = module.kms.kms_ecr_arn
+  ecs_execution_role_arn = module.iam.ecs_execution_role_arn
+}
 
 module "security_groups" {
   source = "./modules/security-groups"
-
+  
   providers = {
     aws = aws.main
   }
@@ -49,4 +61,16 @@ module "security_groups" {
   prefix   = local.prefix
   vpc_id   = module.networking.vpc_id
   vpc_cidr = var.vpc_cidr
+}
+
+module "networking" {
+  source = "./modules/networking"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix            = local.prefix
+  vpc_cidr          = var.vpc_cidr
+  nat_gateway_count = local.nat_gateway_count
 }
