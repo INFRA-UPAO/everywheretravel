@@ -44,3 +44,16 @@ resource "aws_apigatewayv2_api" "main" {
     Name = "${var.prefix}-api"
   }
 }
+
+# JWT AUTHORIZER — COGNITO
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.main.id
+  authorizer_type  = "JWT"
+  name             = "${var.prefix}-cognito-authorizer"
+  identity_sources = ["$request.header.Authorization"]
+
+  jwt_configuration {
+    issuer   = var.cognito_issuer_url
+    audience = [var.cognito_app_client_id]
+  }
+}
