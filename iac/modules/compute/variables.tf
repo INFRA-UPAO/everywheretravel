@@ -89,4 +89,7 @@ variable "kms_logs_arn" {
     type        = string
 }
 
-
+variable "alb_certificate_arn" {
+    description = "ARN del certificado ACM para el listener HTTPS del ALB"
+    type        = string
+} 

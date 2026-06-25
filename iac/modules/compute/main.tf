@@ -7,7 +7,7 @@ locals {
 # CLOUDWATCH LOG GROUP
 resource "aws_cloudwatch_log_group" "ecs" {
     name              = "/aws/ecs/${var.prefix}/monolito"
-    retention_in_days = 30
+    retention_in_days = 365
     kms_key_id        = var.kms_logs_arn
 
     tags = {
@@ -49,9 +49,10 @@ resource "aws_lb" "main" {
     security_groups    = [var.sg_alb_id]
     subnets            = var.private_app_subnet_ids
 
-    idle_timeout = 60
-
+    idle_timeout                     = 60
     enable_cross_zone_load_balancing = true
+    drop_invalid_header_fields       = true
+    enable_deletion_protection       = true
 
     access_logs {
         bucket  = var.s3_access_logs_bucket
@@ -98,10 +99,32 @@ data "aws_vpc" "current" {
 }
 
 # ALB LISTENER
+resource "aws_lb_listener" "http" {
+    load_balancer_arn = aws_lb.main.arn
+    port              = 80
+    protocol          = "HTTP"
+
+    default_action {
+        type = "redirect"
+
+        redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+        }
+    }
+
+    tags = {
+        Name = "${var.prefix}-alb-http-listener"
+    }
+}
+
 resource "aws_lb_listener" "main" {
     load_balancer_arn = aws_lb.main.arn
-    port              = var.ecs_app_port
-    protocol          = "HTTP"
+    port              = 443
+    protocol          = "HTTPS"
+    certificate_arn   = var.alb_certificate_arn
+    ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 
     default_action {
         type             = "forward"
@@ -109,7 +132,7 @@ resource "aws_lb_listener" "main" {
     }
 
     tags = {
-        Name = "${var.prefix}-alb-listener"
+        Name = "${var.prefix}-alb-https-listener"
     }
 }
 
