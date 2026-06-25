@@ -74,3 +74,15 @@ module "networking" {
   vpc_cidr          = var.vpc_cidr
   nat_gateway_count = local.nat_gateway_count
 }
+
+module "auth" {
+  source = "./modules/auth"
+
+  providers = {
+    aws = aws.main
+  }
+
+  prefix      = local.prefix
+  domain_name = var.domain_name
+  env         = local.env
+}
