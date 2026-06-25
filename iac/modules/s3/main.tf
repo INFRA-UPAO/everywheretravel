@@ -6,9 +6,7 @@ locals {
   region     = data.aws_region.current.region
 }
 
-# ==============================================================================
 # BUCKET 1 — FRONTEND ANGULAR
-# ==============================================================================
 
 resource "aws_s3_bucket" "frontend" {
   # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
@@ -84,9 +82,7 @@ resource "aws_s3_bucket_logging" "frontend" {
   target_prefix = "frontend-bucket/"
 }
 
-# ==============================================================================
 # BUCKET 2 — DOCUMENTOS PDF
-# ==============================================================================
 
 resource "aws_s3_bucket" "docs" {
   # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
@@ -247,9 +243,7 @@ resource "aws_s3_bucket_policy" "docs" {
   depends_on = [aws_s3_bucket_public_access_block.docs]
 }
 
-# ==============================================================================
 # BUCKET 3 — WAF LOGS
-# ==============================================================================
 
 resource "aws_s3_bucket" "waf_logs" {
   # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
