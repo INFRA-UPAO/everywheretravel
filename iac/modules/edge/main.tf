@@ -34,6 +34,8 @@ resource "aws_route53_record" "caa" {
     "0 issue \"amazontrust.com\"",
     "0 issue \"awstrust.com\""
   ]
+
+  depends_on = [aws_route53_record.caa]
 }
 
 resource "aws_route53_record" "cert_validation" {
