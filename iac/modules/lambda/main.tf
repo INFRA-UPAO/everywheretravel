@@ -38,9 +38,10 @@ data "archive_file" "lambda_placeholder" {
 }
 
 # LOG GROUP
+# FIX CKV_AWS_338 — retención mínima 1 año
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${var.prefix}-doc-generante"
-  retention_in_days = 14
+  retention_in_days = 365
   kms_key_id        = var.kms_logs_arn
 
   tags = {
@@ -49,6 +50,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 # LAMBDA FUNCTION
+# checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
 resource "aws_lambda_function" "doc_generante" {
   function_name = "${var.prefix}-doc-generante"
   role          = var.lambda_docgen_role_arn
@@ -61,11 +63,26 @@ resource "aws_lambda_function" "doc_generante" {
   memory_size = var.lambda_memory
   timeout     = var.lambda_timeout
 
+  # FIX CKV_AWS_115 — límite de concurrencia a nivel función
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
+
+  # FIX CKV_AWS_50 — habilitar X-Ray tracing
+  tracing_config {
+    mode = "Active"
+  }
+
+  # FIX CKV_AWS_116 — Dead Letter Queue para mensajes fallidos
+  dead_letter_config {
+    target_arn = var.sqs_dlq_arn
+  }
 
   vpc_config {
     subnet_ids         = var.private_app_subnet_ids
     security_group_ids = [var.sg_lambda_id]
   }
+
+  # FIX CKV_AWS_173 — cifrado de variables de entorno con KMS
+  kms_key_arn = var.kms_logs_arn
 
   environment {
     variables = {
@@ -73,7 +90,7 @@ resource "aws_lambda_function" "doc_generante" {
       S3_PREFIX                           = "generated/"
       DB_SECRET_ARN                       = var.rds_secret_arn
       SQS_QUEUE_URL                       = var.sqs_queue_url
-      AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1" # reutiliza conexiones HTTP
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
     }
   }
 
@@ -102,11 +119,9 @@ resource "aws_lambda_event_source_mapping" "sqs" {
   event_source_arn = var.sqs_queue_arn
   function_name    = aws_lambda_function.doc_generante.arn
 
-  batch_size = 5
-
+  batch_size                         = 5
   maximum_batching_window_in_seconds = 10
-
-  function_response_types = ["ReportBatchItemFailures"]
+  function_response_types            = ["ReportBatchItemFailures"]
 
   scaling_config {
     maximum_concurrency = 10
