@@ -5,4 +5,8 @@ terraform {
       configuration_aliases = [aws]
     }
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> rama-temporal

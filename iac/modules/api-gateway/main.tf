@@ -5,6 +5,7 @@ locals {
 }
 
 # CW LOG GROUP — ACCESS LOGS
+#FIX CKV_AWS_338	aws_cloudwatch_log_group.api_access_logs	Retención de logs (mínimo 365)
 resource "aws_cloudwatch_log_group" "api_access_logs" {
   name              = "/aws/apigateway/${var.prefix}/access-logs"
   retention_in_days = 365
@@ -78,7 +79,7 @@ resource "aws_apigatewayv2_integration" "alb" {
   connection_type        = "VPC_LINK"
   connection_id          = aws_apigatewayv2_vpc_link.main.id
   timeout_milliseconds   = 29000
-  payload_format_version = "2.0"
+  payload_format_version = "1.0"
 }
 
 # RUTA — ANY /{proxy+}
