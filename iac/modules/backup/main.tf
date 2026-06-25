@@ -60,10 +60,11 @@ resource "aws_backup_vault" "cross_region" {
     provider = aws.edge
     count    = var.is_prod ? 1 : 0
 
-    name = "${var.prefix}-backup-vault-cross-region"
+    name        = "${var.prefix}-backup-vault-cross-region"
+    kms_key_arn = var.kms_backups_edge_arn
 
     tags = {
-    Name = "${var.prefix}-backup-vault-cross-region"
+        Name = "${var.prefix}-backup-vault-cross-region"
     }
 }
 
