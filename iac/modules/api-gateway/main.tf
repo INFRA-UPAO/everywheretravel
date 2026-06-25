@@ -57,3 +57,14 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
     audience = [var.cognito_app_client_id]
   }
 }
+
+# VPC LINK
+resource "aws_apigatewayv2_vpc_link" "main" {
+  name               = "${var.prefix}-vpc-link"
+  security_group_ids = [var.sg_vpclink_id]
+  subnet_ids         = var.private_app_subnet_ids
+
+  tags = {
+    Name = "${var.prefix}-vpc-link"
+  }
+}
