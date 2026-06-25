@@ -74,3 +74,33 @@ module "networking" {
   vpc_cidr          = var.vpc_cidr
   nat_gateway_count = local.nat_gateway_count
 }
+
+module "database" {
+  source    = "./modules/database"
+  providers = { aws = aws.main }
+
+  prefix                  = local.prefix
+  db_name                 = var.db_name
+  db_username             = var.db_username
+  db_instance_class       = local.db_instance_class
+  db_multi_az             = local.db_multi_az
+  kms_rds_arn             = module.kms.kms_rds_arn
+  private_data_subnet_ids = module.networking.private_data_subnet_ids
+  sg_rds_id               = module.security_groups.sg_rds_id
+}
+
+module "secrets" {
+  source    = "./modules/secrets"
+  providers = { aws = aws.main }
+
+  prefix                 = local.prefix
+  kms_secrets_arn        = module.kms.kms_secrets_arn
+  db_username            = var.db_username
+  db_name                = var.db_name
+  db_password            = module.database.rds_password
+  db_host                = module.database.rds_address
+  db_port                = module.database.rds_port
+  ecs_execution_role_arn = module.iam.ecs_execution_role_arn
+  ecs_task_role_arn      = module.iam.ecs_task_role_arn
+  lambda_docgen_role_arn = module.iam.lambda_docgen_role_arn
+}
