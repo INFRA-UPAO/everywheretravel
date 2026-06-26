@@ -38,16 +38,10 @@ data "archive_file" "lambda_placeholder" {
 }
 
 # LOG GROUP
-<<<<<<< HEAD
 # FIX CKV_AWS_338 — retención mínima 1 año
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${var.prefix}-doc-generante"
   retention_in_days = 365
-=======
-resource "aws_cloudwatch_log_group" "lambda" {
-  name              = "/aws/lambda/${var.prefix}-doc-generante"
-  retention_in_days = 14
->>>>>>> rama-temporal
   kms_key_id        = var.kms_logs_arn
 
   tags = {
@@ -56,10 +50,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 # LAMBDA FUNCTION
-<<<<<<< HEAD
 # checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
-=======
->>>>>>> rama-temporal
 resource "aws_lambda_function" "doc_generante" {
   function_name = "${var.prefix}-doc-generante"
   role          = var.lambda_docgen_role_arn
@@ -72,44 +63,19 @@ resource "aws_lambda_function" "doc_generante" {
   memory_size = var.lambda_memory
   timeout     = var.lambda_timeout
 
-<<<<<<< HEAD
-  # FIX CKV_AWS_115 — límite de concurrencia a nivel función
-  reserved_concurrent_executions = var.lambda_reserved_concurrency
-
-  # FIX CKV_AWS_50 — habilitar X-Ray tracing
-  tracing_config {
-    mode = "Active"
-  }
-
-  # FIX CKV_AWS_116 — Dead Letter Queue para mensajes fallidos
-  dead_letter_config {
-    target_arn = var.sqs_dlq_arn
-  }
-=======
->>>>>>> rama-temporal
 
   vpc_config {
     subnet_ids         = var.private_app_subnet_ids
     security_group_ids = [var.sg_lambda_id]
   }
 
-<<<<<<< HEAD
-  # FIX CKV_AWS_173 — cifrado de variables de entorno con KMS
-  kms_key_arn = var.kms_logs_arn
-
-=======
->>>>>>> rama-temporal
   environment {
     variables = {
       S3_DOCS_BUCKET                      = var.s3_docs_bucket
       S3_PREFIX                           = "generated/"
       DB_SECRET_ARN                       = var.rds_secret_arn
       SQS_QUEUE_URL                       = var.sqs_queue_url
-<<<<<<< HEAD
-      AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
-=======
       AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1" # reutiliza conexiones HTTP
->>>>>>> rama-temporal
     }
   }
 
@@ -138,24 +104,13 @@ resource "aws_lambda_event_source_mapping" "sqs" {
   event_source_arn = var.sqs_queue_arn
   function_name    = aws_lambda_function.doc_generante.arn
 
-<<<<<<< HEAD
-  batch_size                         = 5
-  maximum_batching_window_in_seconds = 10
-  function_response_types            = ["ReportBatchItemFailures"]
-=======
   batch_size = 5
 
   maximum_batching_window_in_seconds = 10
 
   function_response_types = ["ReportBatchItemFailures"]
->>>>>>> rama-temporal
 
   scaling_config {
     maximum_concurrency = 10
   }
-<<<<<<< HEAD
-
-  bisect_batch_on_function_error = true
-=======
->>>>>>> rama-temporal
 }

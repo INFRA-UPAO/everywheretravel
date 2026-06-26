@@ -181,6 +181,7 @@ module "compute" {
   }
 
   prefix                 = local.prefix
+  is_prod                = local.is_prod
   vpc_id                 = module.networking.vpc_id
   private_app_subnet_ids = module.networking.private_app_subnet_ids
   sg_alb_id              = module.security_groups.sg_alb_id

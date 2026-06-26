@@ -3,6 +3,11 @@ variable "prefix" {
   type        = string
 }
 
+variable "is_prod" {
+  description = "Booleano para saber si es prod o dev"
+  type        = bool
+}
+
 variable "vpc_id" {
   description = "VPC ID for the compute module"
   type        = string

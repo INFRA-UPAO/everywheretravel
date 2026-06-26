@@ -53,7 +53,7 @@ resource "aws_lb" "main" {
   idle_timeout                     = 60
   enable_cross_zone_load_balancing = true
   drop_invalid_header_fields       = true
-  enable_deletion_protection       = terraform.workspace == prod ? true : false
+  enable_deletion_protection       = var.is_prod ? true : false
 
   access_logs {
     bucket  = var.s3_access_logs_bucket

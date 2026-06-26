@@ -87,7 +87,7 @@ resource "aws_db_instance" "main" {
   monitoring_role_arn       = aws_iam_role.rds_monitoring.arn
   deletion_protection       = true
   skip_final_snapshot       = !var.db_multi_az
-  final_snapshot_identifier = var.db_multi_az ? "${var.prefix}-rds-final-snapshot" : null
+  final_snapshot_identifier = "${var.prefix}-rds-final-${formatdate("YYYYMMDD-hhmmss", timestamp())}"
   copy_tags_to_snapshot     = true
 
   tags = {
