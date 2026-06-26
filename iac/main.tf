@@ -18,7 +18,21 @@ resource "aws_route53_zone" "main" {
     Name = "everywheretravel.online"
   }
 }
+resource "aws_cloudwatch_log_group" "route53_query_log" {
+  provider          = aws.edge
+  name              = "/aws/route53/everywheretravel.online"
+  retention_in_days = 365
 
+  tags = {
+    Name = "everywheretravel-route53-query-log"
+  }
+}
+
+resource "aws_route53_query_log" "main" {
+  provider                 = aws.main
+  zone_id                  = aws_route53_zone.main.zone_id
+  cloudwatch_log_group_arn = aws_cloudwatch_log_group.route53_query_log.arn
+}
 module "kms" {
   source    = "./modules/kms"
   providers = { aws = aws.main }
@@ -330,3 +344,4 @@ module "observability" {
   has_nat_az_b            = local.nat_gateway_count > 1
   api_id                  = module.api_gateway.api_id
 }
+
