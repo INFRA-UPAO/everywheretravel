@@ -6,9 +6,7 @@ locals {
   region     = data.aws_region.current.region
 }
 
-# TODO: implementar aws_secretsmanager_secret_rotation cuando el modulo vpc-endpoints
-# este desplegado. Requiere subnets privadas y el endpoint de Secrets Manager activo.
-# Fix pendiente: CKV_AWS_149.
+# Fix CKV_AWS_149: rotacion automatica de credenciales RDS cada 30 dias.
 resource "aws_secretsmanager_secret" "rds_credentials" {
   name                    = "${var.prefix}-rds-credentials"
   description             = "Credenciales de conexion a RDS PostgreSQL - ${var.prefix}"
@@ -128,4 +126,34 @@ data "aws_iam_policy_document" "rds_secret_policy" {
 resource "aws_secretsmanager_secret_policy" "rds_credentials" {
   secret_arn = aws_secretsmanager_secret.rds_credentials.arn
   policy     = data.aws_iam_policy_document.rds_secret_policy.json
+}
+
+# Fix CKV_AWS_149: Lambda de rotacion usando el template AWS para RDS PostgreSQL.
+resource "aws_serverlessapplicationrepository_cloudformation_stack" "rotation_lambda" {
+  name           = "${var.prefix}-rds-rotation"
+  application_id = "arn:aws:serverlessrepo:us-east-1:297356227824:applications/SecretsManagerRDSPostgreSQLRotationSingleUser"
+
+  capabilities = ["CAPABILITY_IAM", "CAPABILITY_RESOURCE_POLICY"]
+
+  parameters = {
+    functionName = "${var.prefix}-rds-rotation"
+    endpoint     = "https://secretsmanager.${local.region}.amazonaws.com"
+    vpcSubnetIds = join(",", var.private_app_subnet_ids)
+    vpcSecurityGroupIds = var.sg_lambda_id
+  }
+
+  tags = {
+    Name = "${var.prefix}-rds-rotation"
+  }
+}
+
+resource "aws_secretsmanager_secret_rotation" "rds_credentials" {
+  secret_id           = aws_secretsmanager_secret.rds_credentials.id
+  rotation_lambda_arn = aws_serverlessapplicationrepository_cloudformation_stack.rotation_lambda.outputs["RotationLambdaARN"]
+
+  rotation_rules {
+    automatically_after_days = 30
+  }
+
+  depends_on = [aws_secretsmanager_secret_policy.rds_credentials]
 }

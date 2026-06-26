@@ -48,3 +48,18 @@ variable "lambda_docgen_role_arn" {
   description = "ARN del Lambda doc-generante Role"
   type        = string
 }
+
+variable "private_app_subnet_ids" {
+  description = "IDs de las subnets privadas de aplicacion para la Lambda de rotacion"
+  type        = list(string)
+}
+
+variable "sg_lambda_id" {
+  description = "ID del security group de Lambda para acceso a RDS y VPC endpoints"
+  type        = string
+}
+
+variable "rds_instance_arn" {
+  description = "ARN de la instancia RDS para permisos de rotacion"
+  type        = string
+}
