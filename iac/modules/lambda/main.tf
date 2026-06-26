@@ -62,7 +62,7 @@ resource "aws_lambda_function" "doc_generante" {
 
   memory_size = var.lambda_memory
   timeout     = var.lambda_timeout
-
+  reserved_concurrent_executions = 5
 
   vpc_config {
     subnet_ids         = var.private_app_subnet_ids
