@@ -223,7 +223,9 @@ resource "aws_lambda_function" "viewer_request" {
   timeout          = 5
   memory_size      = 128
   publish          = true
-
+  tracing_config {
+    mode = "PassThrough"
+  }
   tags = {
     Name = "${var.prefix}-viewer-request"
   }
