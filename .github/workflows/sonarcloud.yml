@@ -33,7 +33,7 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
 
       - name: SonarCloud Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v4
+        uses: SonarSource/sonarqube-quality-gate-action@v3
         timeout-minutes: 5
         with:
           scanMetadataReportFile: iac/.scannerwork/report-task.txt
