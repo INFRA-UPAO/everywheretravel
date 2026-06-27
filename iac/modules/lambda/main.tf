@@ -50,7 +50,8 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 # LAMBDA FUNCTION
-# checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
+#checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
+#checkov:skip=CKV_AWS_116: Dead Letter Queue configurada via dead_letter_config con var.sqs_dlq_arn
 resource "aws_lambda_function" "doc_generante" {
   function_name = "${var.prefix}-doc-generante"
   role          = var.lambda_docgen_role_arn
@@ -63,6 +64,13 @@ resource "aws_lambda_function" "doc_generante" {
   memory_size = var.lambda_memory
   timeout     = var.lambda_timeout
   reserved_concurrent_executions = 5
+  kms_key_arn = var.kms_logs_arn
+
+  # FIX CKV_AWS_116 — Dead Letter Queue
+  dead_letter_config {
+    target_arn = var.sqs_dlq_arn
+  }
+
   tracing_config {
     mode = "Active"
   }

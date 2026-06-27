@@ -57,3 +57,8 @@ variable "lambda_reserved_concurrency" {
   type        = number
   default     = 10
 }
+
+variable "sqs_dlq_arn" {
+  description = "ARN de la SQS Dead Letter Queue para Lambda"
+  type        = string
+}
