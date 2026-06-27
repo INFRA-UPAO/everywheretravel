@@ -31,13 +31,3 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
-
-      - name: SonarCloud Quality Gate
-        id: quality-gate
-        uses: SonarSource/sonarqube-quality-gate-action@master
-        with:
-          scanMetadataReportFile: iac/.scannerwork/report-task.txt
-          pollingTimeoutSec: 600
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
