@@ -1,4 +1,4 @@
-name: SonarCloud Analysis
+name: SonarCloud IaC Analysis
 
 on:
   push:
@@ -13,21 +13,36 @@ on:
 
 jobs:
   sonarcloud:
-    name: SonarCloud Scan
+    name: SonarCloud Scan + Quality Gate
     runs-on: ubuntu-latest
 
     steps:
+      # Paso 1: Checkout del código
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Paso 2: Ejecutar SonarScanner
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@master
         with:
           projectBaseDir: iac
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/.terraform/**
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+
+      # Paso 3: Verificar Quality Gate
+      - name: SonarCloud Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          scanMetadataReportFile: iac/.scannerwork/report-task.txt
