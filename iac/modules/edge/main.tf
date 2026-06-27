@@ -212,6 +212,7 @@ data "archive_file" "lambda_edge_zip" {
 }
 
 resource "aws_lambda_function" "viewer_request" {
+  # checkov:skip=CKV_AWS_272: Lambda@Edge no soporta code signing configuration
   provider = aws.edge
 
   function_name    = "${var.prefix}-viewer-request"
