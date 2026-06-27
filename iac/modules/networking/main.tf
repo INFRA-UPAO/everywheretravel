@@ -306,15 +306,15 @@ resource "aws_network_acl_rule" "public_inbound_https" {
   to_port        = 443
 }
 
-resource "aws_network_acl_rule" "public_inbound_ephemeral" {
-    network_acl_id = aws_network_acl.public.id
-    rule_number    = 200
-    egress         = false
-    protocol       = "tcp"
-    rule_action    = "allow"
-    cidr_block     = "0.0.0.0/0"
-    from_port      = 1024
-    to_port        = 65535
+resource "aws_network_acl_rule" "public_inbound_deny_rdp" {
+  network_acl_id = aws_network_acl.public.id
+  rule_number    = 150
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "deny"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 3389
+  to_port        = 3389
 }
 
 # OUTBOUND
@@ -355,25 +355,25 @@ resource "aws_network_acl" "private_app" {
 
 # FIX CKV_AWS_352 — Acotar al puerto de la app (8080) en vez de 0-65535
 resource "aws_network_acl_rule" "private_app_inbound_vpc" {
-    network_acl_id = aws_network_acl.private_app.id
-    rule_number    = 100
-    egress         = false
-    protocol       = "tcp"
-    rule_action    = "allow"
-    cidr_block     = var.vpc_cidr
-    from_port      = 0
-    to_port        = 65535
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 100
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = var.vpc_cidr
+  from_port      = 8080
+  to_port        = 8080
 }
 
 resource "aws_network_acl_rule" "private_app_inbound_return" {
-    network_acl_id = aws_network_acl.private_app.id
-    rule_number    = 200
-    egress         = false
-    protocol       = "tcp"
-    rule_action    = "allow"
-    cidr_block     = "0.0.0.0/0"
-    from_port      = 1024
-    to_port        = 65535
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 200
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = var.vpc_cidr
+  from_port      = 1024
+  to_port        = 65535
 }
 
 resource "aws_network_acl_rule" "private_app_outbound_rds_az_a" {
