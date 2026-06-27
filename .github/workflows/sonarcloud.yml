@@ -9,6 +9,7 @@ on:
     branches: [dev, main]
     paths:
       - "iac/**"
+  workflow_dispatch:
 
 jobs:
   sonarcloud:
