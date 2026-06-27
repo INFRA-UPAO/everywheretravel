@@ -14,7 +14,7 @@ on:
 jobs:
   sonarqube:
     name: SonarQube Scan + Quality Gate
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -30,11 +30,13 @@ jobs:
             -v "${{ github.workspace }}/iac:/usr/src" \
             sonarsource/sonar-scanner-cli
 
-      - name: SonarQube Quality Gate Check
-        uses: SonarSource/sonarqube-quality-gate-action@master
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          scanMetadataReportFile: iac/.scannerwork/report-task.txt
+      - name: Quality Gate Check
+        run: |
+          sleep 15
+          STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" "${{ secrets.SONAR_HOST_URL }}/api/qualitygates/project_status?projectKey=everywheretravel" | jq -r '.projectStatus.status')
+          echo "Quality Gate Status: $STATUS"
+          if [ "$STATUS" != "OK" ]; then
+            echo "Quality Gate FAILED"
+            exit 1
+          fi
+          echo "Quality Gate PASSED"
