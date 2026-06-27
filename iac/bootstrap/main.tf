@@ -8,9 +8,10 @@ terraform {
 }
 
 provider "aws" {
-  region  = "us-east-2"
+  region = "us-east-2"
 }
 
+# checkov:skip=CKV2_AWS_62: Bucket de state management no requiere event notifications
 resource "aws_s3_bucket" "tfstate" {
   #checkov:skip=CKV_AWS_144:Cross-region replication no aplica para bucket de tfstate con versionado habilitado
   #checkov:skip=CKV2_AWS_62:Event notifications no requeridas para bucket de gestion de estado
