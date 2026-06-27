@@ -1,0 +1,38 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "iac/**"
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "iac/**"
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: iac
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+      - name: SonarCloud Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
