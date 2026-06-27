@@ -1,0 +1,70 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "iac/**"
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "iac/**"
+  workflow_dispatch:
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan + Quality Gate
+    runs-on: ubuntu-latest
+
+    services:
+      sonarqube:
+        image: sonarqube:community
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/api/system/status || exit 1"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 180s
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Wait for SonarQube to be ready
+        run: |
+          echo "Waiting for SonarQube..."
+          until curl -s http://localhost:9000/api/system/status | grep -q '"status":"UP"'; do
+            sleep 10
+          done
+          echo "SonarQube is ready"
+
+      - name: Setup SonarQube project and token
+        run: |
+          curl -s -u admin:admin -X POST "http://localhost:9000/api/users/change_password?login=admin&previousPassword=admin&password=admin1234"
+          curl -s -u admin:admin1234 -X POST "http://localhost:9000/api/projects/create?name=everywhere-travel&project=everywhere-travel"
+          TOKEN=$(curl -s -u admin:admin1234 -X POST "http://localhost:9000/api/user_tokens/generate?name=ci" | jq -r '.token')
+          echo "SONAR_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: SonarQube Scan
+        run: |
+          docker run --rm \
+            --network host \
+            -e SONAR_HOST_URL="http://localhost:9000" \
+            -e SONAR_TOKEN="${SONAR_TOKEN}" \
+            -v "${{ github.workspace }}/iac:/usr/src" \
+            sonarsource/sonar-scanner-cli
+
+      - name: Quality Gate Check
+        run: |
+          sleep 15
+          STATUS=$(curl -s -u "${SONAR_TOKEN}:" "http://localhost:9000/api/qualitygates/project_status?projectKey=everywhere-travel" | jq -r '.projectStatus.status')
+          echo "Quality Gate Status: $STATUS"
+          if [ "$STATUS" != "OK" ]; then
+            echo "Quality Gate FAILED"
+            exit 1
+          fi
+          echo "Quality Gate PASSED"
