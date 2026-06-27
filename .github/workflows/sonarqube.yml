@@ -14,7 +14,7 @@ on:
 jobs:
   sonarqube:
     name: SonarQube Scan + Quality Gate
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout
@@ -31,7 +31,7 @@ jobs:
             sonarsource/sonar-scanner-cli
 
       - name: SonarQube Quality Gate Check
-        uses: SonarSource/sonarqube-quality-gate-action@v4
+        uses: SonarSource/sonarqube-quality-gate-action@master
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
