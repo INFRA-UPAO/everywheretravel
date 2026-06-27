@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@master
         with:
           projectBaseDir: iac
           args: >
@@ -33,10 +33,11 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
 
       - name: SonarCloud Quality Gate
-        uses: SonarSource/sonarqube-quality-gate-action@v3
-        timeout-minutes: 5
+        id: quality-gate
+        uses: SonarSource/sonarqube-quality-gate-action@master
         with:
           scanMetadataReportFile: iac/.scannerwork/report-task.txt
+          pollingTimeoutSec: 600
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
