@@ -132,6 +132,9 @@ module "secrets" {
   ecs_execution_role_arn = module.iam.ecs_execution_role_arn
   ecs_task_role_arn      = module.iam.ecs_task_role_arn
   lambda_docgen_role_arn = module.iam.lambda_docgen_role_arn
+  rds_instance_arn       = module.database.rds_arn
+  sg_lambda_id           = module.security_groups.sg_lambda_id
+  private_app_subnet_ids = module.networking.private_app_subnet_ids
 }
 
 module "vpc_endpoints" {
