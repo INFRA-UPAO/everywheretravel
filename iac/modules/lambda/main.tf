@@ -61,10 +61,10 @@ resource "aws_lambda_function" "doc_generante" {
   filename         = data.archive_file.lambda_placeholder.output_path
   source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
 
-  memory_size = var.lambda_memory
-  timeout     = var.lambda_timeout
-  reserved_concurrent_executions = 5
-  kms_key_arn = var.kms_logs_arn
+  memory_size                    = var.lambda_memory
+  timeout                        = var.lambda_timeout
+  reserved_concurrent_executions = 0
+  kms_key_arn                    = var.kms_logs_arn
 
   # FIX CKV_AWS_116 — Dead Letter Queue
   dead_letter_config {
@@ -120,8 +120,4 @@ resource "aws_lambda_event_source_mapping" "sqs" {
   maximum_batching_window_in_seconds = 10
 
   function_response_types = ["ReportBatchItemFailures"]
-
-  scaling_config {
-    maximum_concurrency = 10
-  }
 }

@@ -234,7 +234,8 @@ data "aws_iam_policy_document" "lambda_docgen_permissions" {
       "sqs:ReceiveMessage",
       "sqs:DeleteMessage",
       "sqs:GetQueueAttributes",
-      "sqs:ChangeMessageVisibility"
+      "sqs:ChangeMessageVisibility",
+      "sqs:SendMessage"
     ]
     resources = [
       local.sqs_queue_arn,

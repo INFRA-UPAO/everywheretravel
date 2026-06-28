@@ -2,7 +2,7 @@
 resource "random_password" "db" {
   length           = 16
   special          = true
-  override_special = "!#$%^&*-_=+?@"
+  override_special = "!#$%^&*-_=+?"
   min_upper        = 1
   min_lower        = 1
   min_numeric      = 1
@@ -79,7 +79,7 @@ resource "aws_db_instance" "main" {
   performance_insights_kms_key_id       = var.kms_rds_arn
   performance_insights_retention_period = 7
   enabled_cloudwatch_logs_exports       = ["postgresql"]
-  iam_database_authentication_enabled    = true
+  iam_database_authentication_enabled   = true
   deletion_protection                   = true
   skip_final_snapshot                   = !var.db_multi_az
   final_snapshot_identifier             = var.db_multi_az ? "${var.prefix}-rds-final-snapshot" : null

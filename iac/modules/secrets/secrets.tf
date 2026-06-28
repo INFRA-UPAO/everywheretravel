@@ -11,7 +11,7 @@ resource "aws_secretsmanager_secret" "rds_credentials" {
   name                    = "${var.prefix}-rds-credentials"
   description             = "Credenciales de conexion a RDS PostgreSQL - ${var.prefix}"
   kms_key_id              = var.kms_secrets_arn
-  recovery_window_in_days = terraform.workspace == "dev" ? 0 : 7
+  recovery_window_in_days = 0
 
   tags = {
     Name = "${var.prefix}-rds-credentials"
