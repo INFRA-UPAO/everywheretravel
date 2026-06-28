@@ -82,3 +82,8 @@ output "kms_route53_logs_arn" {
   description = "ARN de la llave KMS para Route53 query logs (us-east-1)"
   value       = aws_kms_key.route53_logs.arn
 }
+
+output "kms_dnssec_arn" {
+  description = "ARN de la llave KMS asimetrica para Route53 DNSSEC (us-east-1)"
+  value       = aws_kms_key.dnssec.arn
+}

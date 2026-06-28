@@ -14,7 +14,12 @@ variable "is_prod" {
 }
 
 variable "kms_route53_logs_arn" {
-  description = "ARN de la llave KMS para Route53 query logs y DNSSEC (us-east-1)"
+  description = "ARN de la llave KMS para Route53 query logs (us-east-1)"
+  type        = string
+}
+
+variable "kms_dnssec_arn" {
+  description = "ARN de la llave KMS asimetrica para DNSSEC (us-east-1)"
   type        = string
 }
 

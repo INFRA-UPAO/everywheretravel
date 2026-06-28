@@ -261,6 +261,7 @@ module "route53" {
   domain_name               = var.domain_name
   is_prod                   = local.is_prod
   kms_route53_logs_arn      = module.kms.kms_route53_logs_arn
+  kms_dnssec_arn            = module.kms.kms_dnssec_arn
   cloudfront_domain_name    = module.edge.cloudfront_domain_name
   cloudfront_hosted_zone_id = module.edge.cloudfront_hosted_zone_id
   zoho_verification_token   = var.zoho_verification_token
