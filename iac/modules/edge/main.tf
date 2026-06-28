@@ -35,6 +35,8 @@ resource "aws_lambda_function" "viewer_request" {
   timeout          = 5
   memory_size      = 128
   publish          = true
+  reserved_concurrent_executions = 100
+
   tracing_config {
     mode = "PassThrough"
   }
