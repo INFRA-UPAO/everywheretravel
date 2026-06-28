@@ -22,15 +22,26 @@ resource "aws_network_acl_rule" "public_inbound_https" {
   to_port        = 443
 }
 
-resource "aws_network_acl_rule" "public_inbound_ephemeral" {
-    network_acl_id = aws_network_acl.public.id
-    rule_number    = 200
-    egress         = false
-    protocol       = "tcp"
-    rule_action    = "allow"
-    cidr_block     = "0.0.0.0/0"
-    from_port      = 1024
-    to_port        = 65535
+resource "aws_network_acl_rule" "public_inbound_ephemeral_1" {
+  network_acl_id = aws_network_acl.public.id
+  rule_number    = 200
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 1024
+  to_port        = 3388
+}
+
+resource "aws_network_acl_rule" "public_inbound_ephemeral_2" {
+  network_acl_id = aws_network_acl.public.id
+  rule_number    = 210
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 3390 
+  to_port        = 65535
 }
 
 resource "aws_network_acl_rule" "public_outbound_https" {
@@ -79,15 +90,26 @@ resource "aws_network_acl_rule" "private_app_inbound_vpc" {
     to_port        = 65535
 }
 
-resource "aws_network_acl_rule" "private_app_inbound_return" {
-    network_acl_id = aws_network_acl.private_app.id
-    rule_number    = 200
-    egress         = false
-    protocol       = "tcp"
-    rule_action    = "allow"
-    cidr_block     = "0.0.0.0/0"
-    from_port      = 1024
-    to_port        = 65535
+resource "aws_network_acl_rule" "private_app_inbound_return_1" {
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 200
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 1024
+  to_port        = 3388
+}
+
+resource "aws_network_acl_rule" "private_app_inbound_return_2" {
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 210
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 3390
+  to_port        = 65535
 }
 
 resource "aws_network_acl_rule" "private_app_outbound_rds_az_a" {
