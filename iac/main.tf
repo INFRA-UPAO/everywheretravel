@@ -22,6 +22,7 @@ resource "aws_cloudwatch_log_group" "route53_query_log" {
   provider          = aws.edge
   name              = "/aws/route53/everywheretravel.online"
   retention_in_days = 365
+  kms_key_id        = module.kms.kms_route53_logs_arn
 
   tags = {
     Name = "everywheretravel-route53-query-log"
@@ -34,8 +35,11 @@ resource "aws_route53_query_log" "main" {
   cloudwatch_log_group_arn = aws_cloudwatch_log_group.route53_query_log.arn
 }
 module "kms" {
-  source    = "./modules/kms"
-  providers = { aws = aws.main }
+  source = "./modules/kms"
+  providers = {
+    aws      = aws.main
+    aws.edge = aws.edge
+  }
 
   prefix = local.prefix
   env    = local.env
@@ -321,6 +325,7 @@ module "lambda" {
   s3_docs_bucket         = module.s3.s3_docs_bucket
   rds_secret_arn         = module.secrets.rds_secret_arn
   kms_logs_arn           = module.kms.kms_logs_arn
+  sqs_dlq_arn            = module.sqs.sqs_dlq_arn
 }
 
 module "observability" {
