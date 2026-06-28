@@ -43,6 +43,8 @@ resource "aws_cloudfront_response_headers_policy" "security" {
 }
 
 resource "aws_cloudfront_distribution" "main" {
+  # checkov:skip=CKV_AWS_310: Los orígenes cumplen funciones distintas (frontend y API), no aplica origin failover.
+
   provider = aws.edge
 
   enabled             = true
