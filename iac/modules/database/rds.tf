@@ -42,6 +42,12 @@ resource "aws_db_parameter_group" "main" {
     apply_method = "pending-reboot"
   }
 
+  parameter {
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+
   tags = {
     Name = "${var.prefix}-rds-params"
   }
@@ -73,6 +79,7 @@ resource "aws_db_instance" "main" {
   performance_insights_kms_key_id       = var.kms_rds_arn
   performance_insights_retention_period = 7
   enabled_cloudwatch_logs_exports       = ["postgresql"]
+  iam_database_authentication_enabled    = true
   deletion_protection                   = true
   skip_final_snapshot                   = !var.db_multi_az
   final_snapshot_identifier             = var.db_multi_az ? "${var.prefix}-rds-final-snapshot" : null
