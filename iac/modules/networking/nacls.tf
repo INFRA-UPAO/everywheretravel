@@ -79,15 +79,26 @@ resource "aws_network_acl" "private_app" {
   }
 }
 
-resource "aws_network_acl_rule" "private_app_inbound_vpc" {
-    network_acl_id = aws_network_acl.private_app.id
-    rule_number    = 100
-    egress         = false
-    protocol       = "tcp"
-    rule_action    = "allow"
-    cidr_block     = var.vpc_cidr
-    from_port      = 0
-    to_port        = 65535
+resource "aws_network_acl_rule" "private_app_inbound_http" {
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 100
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = var.vpc_cidr
+  from_port      = 80
+  to_port        = 80
+}
+
+resource "aws_network_acl_rule" "private_app_inbound_https" {
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 110
+  egress         = false
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = var.vpc_cidr
+  from_port      = 443
+  to_port        = 443
 }
 
 resource "aws_network_acl_rule" "private_app_inbound_return_1" {
