@@ -1,4 +1,3 @@
-# AUTO SCALING
 resource "aws_appautoscaling_target" "ecs" {
   max_capacity       = var.ecs_max_tasks
   min_capacity       = var.ecs_min_tasks
