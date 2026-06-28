@@ -1,51 +1,3 @@
-# LAMBDA@EDGE — VIEWER REQUEST
-data "archive_file" "lambda_edge_zip" {
-  type        = "zip"
-  output_path = "${path.module}/lambda_edge.zip"
-
-  source {
-    filename = "index.js"
-    content  = <<-EOF
-      'use strict';
- 
-      exports.handler = async (event) => {
-        const request = event.Records[0].cf.request;
-        const uri = request.uri;
- 
-        if (!uri.includes('.')) {
-          request.uri = '/index.html';
-        }
- 
-        return request;
-      };
-    EOF
-  }
-}
-
-resource "aws_lambda_function" "viewer_request" {
-  # checkov:skip=CKV_AWS_272: Lambda@Edge no soporta code signing configuration
-  provider = aws.edge
-
-  function_name                  = "${var.prefix}-viewer-request"
-  role                           = var.lambda_edge_role_arn
-  runtime                        = "nodejs20.x"
-  handler                        = "index.handler"
-  filename                       = data.archive_file.lambda_edge_zip.output_path
-  source_code_hash               = data.archive_file.lambda_edge_zip.output_base64sha256
-  timeout                        = 5
-  memory_size                    = 128
-  publish                        = true
-  reserved_concurrent_executions = 100
-
-  tracing_config {
-    mode = "PassThrough"
-  }
-  tags = {
-    Name = "${var.prefix}-viewer-request"
-  }
-}
-
-# CLOUDFRONT
 resource "aws_cloudfront_origin_access_control" "s3" {
   provider = aws.edge
 
@@ -56,7 +8,6 @@ resource "aws_cloudfront_origin_access_control" "s3" {
   signing_protocol                  = "sigv4"
 }
 
-# CLOUDFRONT — RESPONSE HEADERS POLICY
 resource "aws_cloudfront_response_headers_policy" "security" {
   provider = aws.edge
   name     = "${var.prefix}-security-headers"
@@ -91,7 +42,6 @@ resource "aws_cloudfront_response_headers_policy" "security" {
   }
 }
 
-# CLOUDFRONT — DISTRIBUTION
 resource "aws_cloudfront_distribution" "main" {
   provider = aws.edge
 
@@ -103,14 +53,11 @@ resource "aws_cloudfront_distribution" "main" {
   price_class         = "PriceClass_200"
   web_acl_id          = aws_wafv2_web_acl.main.arn
 
-  # ORIGEN 1 — S3 Frontend (Angular)
   origin {
     domain_name              = "${var.s3_frontend_bucket_id}.s3.${data.aws_region.main.region}.amazonaws.com"
     origin_id                = "s3-frontend"
     origin_access_control_id = aws_cloudfront_origin_access_control.s3.id
   }
-
-  # ORIGEN 2 — API Gateway (requests /api/*)
 
   origin {
     domain_name = local.api_gateway_host
@@ -196,8 +143,6 @@ resource "aws_cloudfront_distribution" "main" {
   depends_on = [aws_acm_certificate_validation.main]
 }
 
-
-# S3 FRONTEND BUCKET POLICY
 data "aws_iam_policy_document" "frontend_bucket_policy" {
   statement {
     sid    = "AllowCloudFrontOAC"
