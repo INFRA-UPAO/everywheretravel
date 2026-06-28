@@ -34,6 +34,26 @@ resource "aws_route53_query_log" "main" {
   zone_id                  = aws_route53_zone.main.zone_id
   cloudwatch_log_group_arn = aws_cloudwatch_log_group.route53_query_log.arn
 }
+
+data "aws_iam_policy_document" "route53_query_logging_policy" {
+  statement {
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
+    resources = ["${aws_cloudwatch_log_group.route53_query_log.arn}:*"]
+    principals {
+      identifiers = ["route53.amazonaws.com"]
+      type        = "Service"
+    }
+  }
+}
+
+resource "aws_cloudwatch_log_resource_policy" "route53_query_logging_policy" {
+  provider        = aws.edge
+  policy_document = data.aws_iam_policy_document.route53_query_logging_policy.json
+  policy_name     = "route53-query-logging-policy"
+}
 module "kms" {
   source = "./modules/kms"
   providers = {
@@ -350,3 +370,19 @@ module "observability" {
   api_id                  = module.api_gateway.api_id
 }
 
+resource "aws_route53_key_signing_key" "main" {
+  provider                   = aws.main
+  name                       = "everywheretravel-ksk"
+  hosted_zone_id             = aws_route53_zone.main.id
+  key_management_service_arn = module.kms.kms_route53_logs_arn
+  status                     = "ACTIVE"
+}
+
+resource "aws_route53_hosted_zone_dnssec" "main" {
+  provider       = aws.main
+  hosted_zone_id = aws_route53_key_signing_key.main.hosted_zone_id
+
+  depends_on = [
+    aws_route53_key_signing_key.main
+  ]
+}
