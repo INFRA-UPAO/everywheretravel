@@ -1,10 +1,5 @@
-locals {
-  zone_id = var.route53_zone_id
-}
-
-# Record A
 resource "aws_route53_record" "cloudfront" {
-  zone_id = local.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   name    = var.domain_name
   type    = "A"
 
@@ -18,8 +13,8 @@ resource "aws_route53_record" "cloudfront" {
 # MX records — los tres servidores de Zoho Mail.
 resource "aws_route53_record" "zoho_mx" {
   count   = var.is_prod ? 1 : 0
-  zone_id = local.zone_id
-  name    = "everywheretravel.online"
+  zone_id = aws_route53_zone.main.zone_id
+  name    = var.domain_name
   type    = "MX"
   ttl     = 300
 
@@ -37,7 +32,7 @@ resource "aws_route53_record" "zoho_mx" {
 # TXT combinado - SPF + Verificación Zoho
 resource "aws_route53_record" "zoho_txt" {
   count   = var.is_prod ? 1 : 0
-  zone_id = local.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   name    = var.domain_name
   type    = "TXT"
   ttl     = 300
@@ -55,7 +50,7 @@ resource "aws_route53_record" "zoho_txt" {
 # DKIM - Zoho
 resource "aws_route53_record" "zoho_dkim" {
   count   = var.is_prod ? 1 : 0
-  zone_id = local.zone_id
+  zone_id = aws_route53_zone.main.zone_id
   name    = "zmail._domainkey.${var.domain_name}"
   type    = "TXT"
   ttl     = 300

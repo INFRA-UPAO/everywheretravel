@@ -1,5 +1,5 @@
 variable "prefix" {
-  description = "Prefijo único por workspace"
+  description = "Prefijo unico por workspace"
   type        = string
 }
 
@@ -9,17 +9,17 @@ variable "domain_name" {
 }
 
 variable "is_prod" {
-  description = "true en workspace prod — crea la zona y records de Zoho"
+  description = "true en workspace prod -- crea la zona y records de Zoho"
   type        = bool
 }
 
-variable "route53_zone_id" {
-  description = "ID de la Hosted Zone Route 53 creada en el root"
+variable "kms_route53_logs_arn" {
+  description = "ARN de la llave KMS para Route53 query logs y DNSSEC (us-east-1)"
   type        = string
 }
 
 variable "cloudfront_domain_name" {
-  description = "Domain name de la distribución CloudFront"
+  description = "Domain name de la distribucion CloudFront"
   type        = string
 }
 
@@ -30,7 +30,7 @@ variable "cloudfront_hosted_zone_id" {
 }
 
 variable "zoho_verification_token" {
-  description = "Token TXT de verificación de dominio Zoho (solo prod)"
+  description = "Token TXT de verificacion de dominio Zoho (solo prod)"
   type        = string
   default     = ""
 }

@@ -10,50 +10,6 @@ resource "null_resource" "prod_protection" {
   }
 }
 
-resource "aws_route53_zone" "main" {
-  provider = aws.main
-  name     = "everywheretravel.online"
-
-  tags = {
-    Name = "everywheretravel.online"
-  }
-}
-resource "aws_cloudwatch_log_group" "route53_query_log" {
-  provider          = aws.edge
-  name              = "/aws/route53/everywheretravel.online"
-  retention_in_days = 365
-  kms_key_id        = module.kms.kms_route53_logs_arn
-
-  tags = {
-    Name = "everywheretravel-route53-query-log"
-  }
-}
-
-resource "aws_route53_query_log" "main" {
-  provider                 = aws.main
-  zone_id                  = aws_route53_zone.main.zone_id
-  cloudwatch_log_group_arn = aws_cloudwatch_log_group.route53_query_log.arn
-}
-
-data "aws_iam_policy_document" "route53_query_logging_policy" {
-  statement {
-    actions = [
-      "logs:CreateLogStream",
-      "logs:PutLogEvents",
-    ]
-    resources = ["${aws_cloudwatch_log_group.route53_query_log.arn}:*"]
-    principals {
-      identifiers = ["route53.amazonaws.com"]
-      type        = "Service"
-    }
-  }
-}
-
-resource "aws_cloudwatch_log_resource_policy" "route53_query_logging_policy" {
-  provider        = aws.edge
-  policy_document = data.aws_iam_policy_document.route53_query_logging_policy.json
-  policy_name     = "route53-query-logging-policy"
-}
 module "kms" {
   source = "./modules/kms"
   providers = {
@@ -290,20 +246,21 @@ module "edge" {
   s3_waf_logs_bucket_arn = module.s3.s3_waf_logs_bucket_arn
   api_endpoint           = module.api_gateway.api_endpoint
   lambda_edge_role_arn   = module.iam.lambda_edge_role_arn
-  route53_zone_id        = aws_route53_zone.main.zone_id
+  route53_zone_id        = module.route53.zone_id
 }
 
 module "route53" {
   source = "./modules/route53"
 
   providers = {
-    aws = aws.main
+    aws      = aws.main
+    aws.edge = aws.edge
   }
 
   prefix                    = local.prefix
   domain_name               = var.domain_name
   is_prod                   = local.is_prod
-  route53_zone_id           = aws_route53_zone.main.zone_id
+  kms_route53_logs_arn      = module.kms.kms_route53_logs_arn
   cloudfront_domain_name    = module.edge.cloudfront_domain_name
   cloudfront_hosted_zone_id = module.edge.cloudfront_hosted_zone_id
   zoho_verification_token   = var.zoho_verification_token
@@ -368,21 +325,4 @@ module "observability" {
   nat_gateway_az_b_id     = module.networking.nat_gateway_az_b_id
   has_nat_az_b            = local.nat_gateway_count > 1
   api_id                  = module.api_gateway.api_id
-}
-
-resource "aws_route53_key_signing_key" "main" {
-  provider                   = aws.main
-  name                       = "everywheretravel-ksk"
-  hosted_zone_id             = aws_route53_zone.main.id
-  key_management_service_arn = module.kms.kms_route53_logs_arn
-  status                     = "ACTIVE"
-}
-
-resource "aws_route53_hosted_zone_dnssec" "main" {
-  provider       = aws.main
-  hosted_zone_id = aws_route53_key_signing_key.main.hosted_zone_id
-
-  depends_on = [
-    aws_route53_key_signing_key.main
-  ]
 }
