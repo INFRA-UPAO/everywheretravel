@@ -8,6 +8,12 @@ variable "domain_name" {
   type        = string
 }
 
+variable "manage_hosted_zone" {
+  description = "Si es true, el modulo crea/administra la hosted zone. Si es false, usa una hosted zone publica existente."
+  type        = bool
+  default     = true
+}
+
 variable "is_prod" {
   description = "true en workspace prod -- crea la zona y records de Zoho"
   type        = bool
@@ -21,17 +27,6 @@ variable "kms_route53_logs_arn" {
 variable "kms_dnssec_arn" {
   description = "ARN de la llave KMS asimetrica para DNSSEC (us-east-1)"
   type        = string
-}
-
-variable "cloudfront_domain_name" {
-  description = "Domain name de la distribucion CloudFront"
-  type        = string
-}
-
-variable "cloudfront_hosted_zone_id" {
-  description = "Hosted Zone ID de CloudFront (siempre Z2FDTNDATAQYW2)"
-  type        = string
-  default     = "Z2FDTNDATAQYW2"
 }
 
 variable "zoho_verification_token" {

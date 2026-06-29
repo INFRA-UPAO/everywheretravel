@@ -1,6 +1,6 @@
 resource "aws_route53_key_signing_key" "main" {
   name                       = "${var.prefix}-ksk"
-  hosted_zone_id             = aws_route53_zone.main.id
+  hosted_zone_id             = local.zone_id
   key_management_service_arn = var.kms_dnssec_arn
   status                     = "ACTIVE"
 }
