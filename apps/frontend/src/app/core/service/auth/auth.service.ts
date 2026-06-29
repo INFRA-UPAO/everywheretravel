@@ -1,9 +1,6 @@
 import { inject, Injectable } from '@angular/core';
-import { environment } from '../../../../environments/environment';
-import { HttpClient } from '@angular/common/http';
 import { StorageService } from '../storage.service';
-import { AuthRequest } from '../../../shared/models/auth/auth-request-model';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { AuthResponse } from '../../../shared/models/auth/auth-response-model';
 import { CognitoAuthService } from '../cognito/cognito-auth.service';
 
@@ -11,8 +8,6 @@ import { CognitoAuthService } from '../cognito/cognito-auth.service';
   providedIn: 'root'
 })
 export class AuthServiceService {
-  private baseURL = `${environment.baseURL}/auth`;
-  private http = inject(HttpClient);
   private storageService = inject(StorageService);
   private cognitoAuthService = inject(CognitoAuthService);
 
@@ -20,13 +15,8 @@ export class AuthServiceService {
   private currentUserSubject = new BehaviorSubject<AuthResponse | null>(this.storageService.getAuthData());
   currentUser$ = this.currentUserSubject.asObservable();
 
-  login(authRequest: AuthRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.baseURL}/login`, authRequest).pipe(
-      tap(response => {
-        this.storageService.setAuthData(response);
-        this.currentUserSubject.next(response);
-      })
-    );
+  login(): void {
+    this.cognitoAuthService.login();
   }
 
   logout(): void {
