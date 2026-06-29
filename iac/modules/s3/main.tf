@@ -247,6 +247,7 @@ resource "aws_s3_bucket_policy" "docs" {
 # BUCKET 3 — WAF LOGS
 
 resource "aws_s3_bucket" "waf_logs" {
+  # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
   # aws-waf-logs- es el prefijo OBLIGATORIO que exige AWS.
   # Sin este prefijo WAF no puede escribir en el bucket.
   bucket        = "aws-waf-logs-${var.prefix}"
@@ -322,6 +323,8 @@ resource "aws_s3_bucket_logging" "waf_logs" {
 # BUCKET 4 — ACCESS LOGS
 
 resource "aws_s3_bucket" "access_logs" {
+  # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
+  # checkov:skip=CKV_AWS_145: SSE-S3 (AES256) es intencional y necesario por compatibilidad de entrega de logs de servicios de AWS (ej. ALB).
   bucket        = "${var.prefix}-access-logs"
   force_destroy = false
 
@@ -337,6 +340,7 @@ resource "aws_s3_bucket_notification" "access_logs_events" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "access_logs" {
+  # checkov:skip=CKV2_AWS_65: Se requiere BucketOwnerPreferred para permitir la ACL log-delivery-write usada por ALB access logging.
   bucket = aws_s3_bucket.access_logs.id
   rule {
     object_ownership = "BucketOwnerPreferred"
