@@ -54,9 +54,9 @@ variable "kms_logs_arn" {
 }
 
 variable "lambda_reserved_concurrency" {
-  description = "Límite de ejecuciones concurrentes para la Lambda"
+  description = "Límite opcional de ejecuciones concurrentes para la Lambda. null desactiva la reserva."
   type        = number
-  default     = 10
+  default     = null
 }
 
 variable "sqs_dlq_arn" {

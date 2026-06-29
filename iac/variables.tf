@@ -75,9 +75,9 @@ variable "lambda_timeout" {
 }
 
 variable "lambda_reserved_concurrency" {
-  description = "Límite de ejecuciones concurrentes para lambda-doc-generator"
+  description = "Límite opcional de ejecuciones concurrentes para lambda-doc-generator. null desactiva la reserva."
   type        = number
-  default     = 10
+  default     = null
 }
 
 variable "zoho_verification_token" {
