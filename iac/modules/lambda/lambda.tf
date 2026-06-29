@@ -42,7 +42,7 @@ resource "aws_lambda_function" "doc_generante" {
 
   memory_size                    = var.lambda_memory
   timeout                        = var.lambda_timeout
-  reserved_concurrent_executions = 0
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
   kms_key_arn                    = var.kms_logs_arn
 
   # FIX CKV_AWS_116 — Dead Letter Queue
