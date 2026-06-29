@@ -13,7 +13,7 @@ data "archive_file" "lambda_placeholder" {
     filename = "index.js"
     content  = <<-EOF
       'use strict';
- 
+
       /**
        * Lambda doc-generante — PLACEHOLDER
        * Este código es reemplazado por CI/CD con la lógica real.
@@ -23,13 +23,13 @@ data "archive_file" "lambda_placeholder" {
       exports.handler = async (event) => {
         console.log('Lambda doc-generante invocada');
         console.log('Mensajes en el batch:', event.Records.length);
- 
+
         for (const record of event.Records) {
           const body = JSON.parse(record.body);
           console.log('Mensaje recibido:', JSON.stringify(body));
           // TODO: implementar generación de PDF aquí
         }
- 
+
         // Retornar sin errores para que SQS borre los mensajes.
         return { statusCode: 200, processed: event.Records.length };
       };
@@ -50,9 +50,9 @@ resource "aws_cloudwatch_log_group" "lambda" {
 }
 
 # LAMBDA FUNCTION
-#checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
-#checkov:skip=CKV_AWS_116: Dead Letter Queue configurada via dead_letter_config con var.sqs_dlq_arn
 resource "aws_lambda_function" "doc_generante" {
+  # checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
+  # checkov:skip=CKV_AWS_116: Dead Letter Queue configurada via dead_letter_config con var.sqs_dlq_arn
   function_name = "${var.prefix}-doc-generante"
   role          = var.lambda_docgen_role_arn
   runtime       = "nodejs20.x"
