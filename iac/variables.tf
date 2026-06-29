@@ -27,6 +27,12 @@ variable "route53_manage_hosted_zone" {
   default     = true
 }
 
+variable "route53_enable_dnssec" {
+  description = "Activa DNSSEC en Route53. Debe habilitarse despues de delegar los NS del dominio en el registrador."
+  type        = bool
+  default     = false
+}
+
 variable "alert_email" {
   description = "Email para recibir alertas de infraestructura"
   type        = string

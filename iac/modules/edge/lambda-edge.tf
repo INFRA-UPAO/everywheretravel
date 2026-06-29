@@ -25,6 +25,7 @@ resource "aws_lambda_function" "viewer_request" {
   #checkov:skip=CKV_AWS_117:Lambda@Edge no puede ejecutarse dentro de una VPC por diseño de AWS
   #checkov:skip=CKV_AWS_116:Lambda@Edge no soporta Dead Letter Queue por limitación de AWS
   #checkov:skip=CKV_AWS_272:Lambda@Edge no soporta code signing configuration
+  #checkov:skip=CKV_AWS_115:La concurrencia reservada depende del límite regional de la cuenta AWS
 
   provider = aws.edge
 
@@ -37,9 +38,6 @@ resource "aws_lambda_function" "viewer_request" {
   timeout          = 5
   memory_size      = 128
   publish          = true
-
-  # FIX CKV_AWS_115 — límite de concurrencia a nivel función
-  reserved_concurrent_executions = 100
 
   tracing_config {
     mode = "PassThrough"

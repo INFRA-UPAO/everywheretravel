@@ -14,6 +14,12 @@ variable "manage_hosted_zone" {
   default     = true
 }
 
+variable "enable_dnssec" {
+  description = "Activa DNSSEC para la hosted zone. Requiere que los NS ya esten delegados en el registrador."
+  type        = bool
+  default     = false
+}
+
 variable "is_prod" {
   description = "true en workspace prod -- crea la zona y records de Zoho"
   type        = bool

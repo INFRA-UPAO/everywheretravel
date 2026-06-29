@@ -262,6 +262,7 @@ module "route53" {
   prefix                  = local.prefix
   domain_name             = var.domain_name
   manage_hosted_zone      = var.route53_manage_hosted_zone
+  enable_dnssec           = var.route53_enable_dnssec
   is_prod                 = local.is_prod
   kms_route53_logs_arn    = module.kms.kms_route53_logs_arn
   kms_dnssec_arn          = module.kms.kms_dnssec_arn
@@ -306,6 +307,8 @@ module "lambda" {
   rds_secret_arn              = module.secrets.rds_secret_arn
   kms_logs_arn                = module.kms.kms_logs_arn
   sqs_dlq_arn                 = module.sqs.sqs_dlq_arn
+
+  depends_on = [module.iam]
 }
 
 module "observability" {
