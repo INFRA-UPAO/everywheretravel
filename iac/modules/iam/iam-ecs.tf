@@ -172,6 +172,18 @@ data "aws_iam_policy_document" "ecs_task_permissions" {
         values   = ["EverywhereTravel"]
         }
     }
+
+    statement {
+        sid    = "ECSExecuteCommand"
+        effect = "Allow"
+        actions = [
+            "ssmmessages:CreateControlChannel",
+            "ssmmessages:CreateDataChannel",
+            "ssmmessages:OpenControlChannel",
+            "ssmmessages:OpenDataChannel"
+        ]
+        resources = ["*"]
+    }
 }
 
 resource "aws_iam_role_policy" "ecs_task" {

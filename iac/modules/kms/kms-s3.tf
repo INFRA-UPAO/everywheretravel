@@ -40,6 +40,23 @@ resource "aws_kms_key_policy" "s3_frontend" {
           "kms:Decrypt"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "AllowCloudFrontDecrypt"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action = [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = local.account_id
+          }
+        }
       }
     ]
   })

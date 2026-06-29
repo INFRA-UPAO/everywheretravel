@@ -24,7 +24,7 @@ variable "domain_name" {
 variable "route53_manage_hosted_zone" {
   description = "Si es true, Terraform crea/administra la hosted zone. Si es false, solo usa una hosted zone existente."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "route53_enable_dnssec" {

@@ -112,6 +112,15 @@ resource "aws_vpc_security_group_egress_rule" "ecs_to_s3" {
   description       = "HTTPS hacia S3 para pull de imagenes ECR"
 }
 
+resource "aws_vpc_security_group_egress_rule" "ecs_to_internet_https" {
+  security_group_id = aws_security_group.ecs_task.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  description       = "HTTPS hacia servicios externos via NAT (Cognito, STS)"
+}
+
 resource "aws_vpc_security_group_ingress_rule" "vpclink_from_apigw" {
   security_group_id = aws_security_group.vpclink.id
   cidr_ipv4         = var.vpc_cidr
