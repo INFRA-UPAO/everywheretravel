@@ -1,0 +1,14 @@
+{
+  "name": "lambda-doc-generator",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lambda function for generating PDF documents (receipts and billing documents)",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "npm ci --omit=dev"
+  },
+  "dependencies": {
+    "pdfkit": "^0.15.0",
+    "@aws-sdk/client-s3": "^3.600.0"
+  }
+}
