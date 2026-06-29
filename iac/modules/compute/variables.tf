@@ -98,3 +98,13 @@ variable "kms_logs_arn" {
   description = "ARN de la llave KMS para CloudWatch Logs"
   type        = string
 }
+
+variable "environment" {
+  description = "Nombre del entorno (workspace) para SPRING_PROFILES_ACTIVE"
+  type        = string
+}
+
+variable "cognito_user_pool_id" {
+  description = "ID del Cognito User Pool para construir el issuer URI"
+  type        = string
+}

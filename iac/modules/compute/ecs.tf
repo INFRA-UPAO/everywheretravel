@@ -64,11 +64,14 @@ resource "aws_ecs_task_definition" "monolito" {
       ]
 
       environment = [
-        { name = "APP_ENV", value = "production" },
+        { name = "JAVA_TOOL_OPTIONS", value = "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC" },
+        { name = "SPRING_PROFILES_ACTIVE", value = var.environment },
+        { name = "APP_TIMEZONE", value = "America/Lima" },
         { name = "LOG_LEVEL", value = "INFO" },
         { name = "SQS_QUEUE_URL", value = var.sqs_queue_url },
         { name = "S3_DOCS_BUCKET", value = var.s3_docs_bucket },
-        { name = "SERVER_PORT", value = tostring(var.ecs_app_port) }
+        { name = "SERVER_PORT", value = tostring(var.ecs_app_port) },
+        { name = "COGNITO_ISSUER_URI", value = "https://cognito-idp.${local.region}.amazonaws.com/${var.cognito_user_pool_id}" }
       ]
 
       secrets = [
@@ -85,7 +88,7 @@ resource "aws_ecs_task_definition" "monolito" {
           valueFrom = "${var.rds_secret_arn}:dbname::"
         },
         {
-          name      = "DB_USER"
+          name      = "DB_USERNAME"
           valueFrom = "${var.rds_secret_arn}:username::"
         },
         {
@@ -104,7 +107,7 @@ resource "aws_ecs_task_definition" "monolito" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:${var.ecs_app_port}/health || exit 1"]
+        command     = ["CMD-SHELL", "curl -f http://localhost:${var.ecs_app_port}/actuator/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3

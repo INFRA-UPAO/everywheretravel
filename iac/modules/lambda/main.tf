@@ -4,37 +4,16 @@ locals {
   region = data.aws_region.current.region
 }
 
-# PLACEHOLDER ZIP
+# ZIP del codigo fuente de la Lambda.
+# Empaqueta apps/lambda-doc-generator/ (index.mjs + src/ + node_modules/).
+# IMPORTANTE: ejecutar  npm ci --omit=dev  dentro de apps/lambda-doc-generator/
+# antes de terraform apply para que node_modules/ exista en el zip.
+# CI/CD reemplaza este zip con su propio artefacto; el lifecycle ignora
+# filename y source_code_hash para evitar diffs en deploys posteriores.
 data "archive_file" "lambda_placeholder" {
   type        = "zip"
+  source_dir  = "${path.module}/../../../apps/lambda-doc-generator"
   output_path = "${path.module}/lambda_placeholder.zip"
-
-  source {
-    filename = "index.js"
-    content  = <<-EOF
-      'use strict';
-
-      /**
-       * Lambda doc-generante — PLACEHOLDER
-       * Este código es reemplazado por CI/CD con la lógica real.
-       * Propósito: permitir que Terraform cree la función
-       * antes de que el código de negocio esté listo.
-       */
-      exports.handler = async (event) => {
-        console.log('Lambda doc-generante invocada');
-        console.log('Mensajes en el batch:', event.Records.length);
-
-        for (const record of event.Records) {
-          const body = JSON.parse(record.body);
-          console.log('Mensaje recibido:', JSON.stringify(body));
-          // TODO: implementar generación de PDF aquí
-        }
-
-        // Retornar sin errores para que SQS borre los mensajes.
-        return { statusCode: 200, processed: event.Records.length };
-      };
-    EOF
-  }
 }
 
 # LOG GROUP
