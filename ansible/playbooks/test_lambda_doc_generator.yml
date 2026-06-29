@@ -1,0 +1,72 @@
+---
+- name: Test lambda-doc-generator with a demo SQS-like event
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    terraform_output_file: "{{ repo_root }}/ansible/terraform-output.json"
+    outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
+    aws_region: "{{ outputs.aws_region.value }}"
+    lambda_function_name: "{{ outputs.lambda_function_name.value }}"
+    s3_docs_bucket: "{{ outputs.s3_docs_bucket.value }}"
+    demo_document_id: "demo-docente"
+    demo_message:
+      type: "RECIBO"
+      documentId: "{{ demo_document_id }}"
+      data:
+        numero: "R-DEMO-001"
+        fecha: "2026-06-28"
+        cliente: "Docente Demo"
+        clienteDocumento: "00000000"
+        tipoDocumentoCliente: "DNI"
+        sucursal: "Trujillo"
+        moneda: "PEN"
+        fileVenta: "DEMO"
+        formaPago: "Contado"
+        creador: "Usuario Demo"
+        observaciones: "Documento generado para prueba academica."
+        detalles:
+          - id: 1
+            cantidad: 1
+            codigo: "SRV-DEMO"
+            descripcion: "Servicio turistico demo"
+            precioUnitario: 150
+
+  tasks:
+    - name: Create temporary Ansible directory
+      ansible.builtin.file:
+        path: "{{ repo_root }}/ansible/.tmp"
+        state: directory
+        mode: "0755"
+
+    - name: Write Lambda test payload
+      ansible.builtin.copy:
+        dest: "{{ repo_root }}/ansible/.tmp/lambda-test-event.json"
+        mode: "0644"
+        content: |
+          {{
+            {
+              'Records': [
+                {
+                  'messageId': 'demo-message',
+                  'body': demo_message | to_json
+                }
+              ]
+            } | to_nice_json
+          }}
+
+    - name: Invoke Lambda with SQS-like event
+      ansible.builtin.command: >
+        aws lambda invoke
+        --region {{ aws_region }}
+        --function-name {{ lambda_function_name }}
+        --cli-binary-format raw-in-base64-out
+        --payload file://{{ repo_root }}/ansible/.tmp/lambda-test-event.json
+        {{ repo_root }}/ansible/.tmp/lambda-test-response.json
+
+    - name: Show expected S3 location
+      ansible.builtin.debug:
+        msg:
+          - "Lambda invocada. Revisa el bucket de documentos:"
+          - "s3://{{ s3_docs_bucket }}/generated/recibo/"
+          - "El archivo debe incluir el prefijo {{ demo_document_id }}."

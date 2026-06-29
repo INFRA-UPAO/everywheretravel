@@ -1,0 +1,48 @@
+---
+- name: Create Cognito demo user
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    terraform_output_file: "{{ repo_root }}/ansible/terraform-output.json"
+    outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
+    aws_region: "{{ outputs.aws_region.value }}"
+    cognito_user_pool_id: "{{ outputs.cognito_user_pool_id.value }}"
+
+  tasks:
+    - name: Validate demo credentials
+      ansible.builtin.assert:
+        that:
+          - demo_email is defined
+          - demo_password is defined
+          - demo_email | length > 0
+          - demo_password | length >= 8
+        fail_msg: "Run with -e demo_email=docente@example.com -e demo_password='Demo12345!'"
+
+    - name: Create Cognito user without sending invitation email
+      ansible.builtin.command: >
+        aws cognito-idp admin-create-user
+        --region {{ aws_region }}
+        --user-pool-id {{ cognito_user_pool_id }}
+        --username {{ demo_email }}
+        --user-attributes Name=email,Value={{ demo_email }} Name=email_verified,Value=true
+        --message-action SUPPRESS
+      register: create_user_result
+      failed_when: false
+      changed_when: create_user_result.rc == 0
+
+    - name: Set permanent demo password
+      ansible.builtin.command: >
+        aws cognito-idp admin-set-user-password
+        --region {{ aws_region }}
+        --user-pool-id {{ cognito_user_pool_id }}
+        --username {{ demo_email }}
+        --password {{ demo_password }}
+        --permanent
+
+    - name: Show demo user
+      ansible.builtin.debug:
+        msg:
+          - "Usuario demo listo en Cognito."
+          - "Email: {{ demo_email }}"
+          - "Password: {{ demo_password }}"
