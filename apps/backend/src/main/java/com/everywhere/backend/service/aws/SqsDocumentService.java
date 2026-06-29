@@ -25,13 +25,6 @@ public class SqsDocumentService {
     @Value("${SQS_QUEUE_URL:}")
     private String queueUrl;
 
-    /**
-     * Envia un mensaje a SQS para solicitar la generacion de un PDF.
-     *
-     * @param documentType tipo del documento (ej: "RECIBO", "DOCUMENTO_COBRANZA")
-     * @param documentId   identificador del documento en la base de datos
-     * @param data         datos adicionales para la generacion del PDF
-     */
     public void sendPdfGenerationMessage(String documentType, Integer documentId, Map<String, Object> data) {
         if (queueUrl == null || queueUrl.isBlank()) {
             log.warn("SQS_QUEUE_URL no configurado, omitiendo envio de mensaje para: {} id={}", documentType, documentId);

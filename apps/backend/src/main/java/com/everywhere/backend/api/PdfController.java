@@ -32,7 +32,6 @@ public class PdfController {
 
             if (documentoDto == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 
-            // Enviar mensaje a SQS para generacion asincrona del PDF
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("serie", documentoDto.getSerie());
             data.put("correlativo", documentoDto.getCorrelativo());
@@ -61,7 +60,6 @@ public class PdfController {
 
             if (reciboDto == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
 
-            // Enviar mensaje a SQS para generacion asincrona del PDF
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("serie", reciboDto.getSerie());
             data.put("correlativo", reciboDto.getCorrelativo());

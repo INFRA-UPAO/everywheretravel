@@ -11,10 +11,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-/**
- * Extrae informacion del usuario autenticado a partir del JWT de Cognito
- * almacenado en el SecurityContext por Spring OAuth2 Resource Server.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -22,10 +18,6 @@ public class SecurityContextHelper {
 
     private final UserRepository userRepository;
 
-    /**
-     * Obtiene el email del usuario actual desde los claims del JWT de Cognito.
-     * Cognito coloca el email en el claim "email" o en "cognito:username".
-     */
     public String getCurrentUserEmail() {
         Jwt jwt = getCurrentJwt();
 
@@ -45,9 +37,6 @@ public class SecurityContextHelper {
         return email;
     }
 
-    /**
-     * Busca el usuario en la base de datos usando el email extraido del JWT.
-     */
     public User getCurrentUser() {
         String email = getCurrentUserEmail();
         return userRepository.findByEmail(email).orElseThrow(() -> {
@@ -57,9 +46,6 @@ public class SecurityContextHelper {
         });
     }
 
-    /**
-     * Extrae el JWT del SecurityContext actual.
-     */
     private Jwt getCurrentJwt() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 

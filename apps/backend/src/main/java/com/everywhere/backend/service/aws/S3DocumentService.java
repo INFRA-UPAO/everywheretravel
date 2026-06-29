@@ -25,13 +25,6 @@ public class S3DocumentService {
     @Value("${S3_DOCS_BUCKET:}")
     private String bucketName;
 
-    /**
-     * Sube un documento a S3.
-     *
-     * @param key         clave del objeto en S3 (ruta dentro del bucket)
-     * @param content     contenido del archivo en bytes
-     * @param contentType tipo MIME del contenido
-     */
     public void uploadDocument(String key, byte[] content, String contentType) {
         if (bucketName == null || bucketName.isBlank()) {
             log.warn("S3_DOCS_BUCKET no configurado, omitiendo subida de documento: {}", key);
@@ -51,13 +44,6 @@ public class S3DocumentService {
         log.info("Documento subido exitosamente a S3: {}", key);
     }
 
-    /**
-     * Genera una URL pre-firmada para descargar un objeto de S3.
-     *
-     * @param key        clave del objeto en S3
-     * @param expiration duracion de validez de la URL
-     * @return URL pre-firmada como String
-     */
     public String generatePresignedUrl(String key, Duration expiration) {
         if (bucketName == null || bucketName.isBlank()) {
             log.warn("S3_DOCS_BUCKET no configurado, no se puede generar URL pre-firmada para: {}", key);

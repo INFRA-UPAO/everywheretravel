@@ -5,7 +5,7 @@ locals {
 }
 
 # ZIP del codigo fuente de la Lambda.
-# Empaqueta apps/lambda-doc-generator/ (index.mjs + src/ + node_modules/).
+# Empaqueta apps/lambda-doc-generator/ (index.js + src/ + node_modules/).
 # IMPORTANTE: ejecutar  npm ci --omit=dev  dentro de apps/lambda-doc-generator/
 # antes de terraform apply para que node_modules/ exista en el zip.
 # CI/CD reemplaza este zip con su propio artefacto; el lifecycle ignora
