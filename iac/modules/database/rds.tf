@@ -53,6 +53,33 @@ resource "aws_db_parameter_group" "main" {
   }
 }
 
+# ROL IAM PARA ENHANCED MONITORING (definido localmente en el módulo database)
+resource "aws_iam_role" "rds_enhanced_monitoring" {
+  name = "${var.prefix}-rds-enhanced-monitoring"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "monitoring.rds.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.prefix}-rds-enhanced-monitoring"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "rds_enhanced_monitoring" {
+  role       = aws_iam_role.rds_enhanced_monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
 resource "aws_db_instance" "main" {
   identifier                            = "${var.prefix}-rds"
   engine                                = "postgres"
@@ -78,6 +105,8 @@ resource "aws_db_instance" "main" {
   performance_insights_enabled          = true
   performance_insights_kms_key_id       = var.kms_rds_arn
   performance_insights_retention_period = 7
+  monitoring_interval                   = 60
+  monitoring_role_arn                   = aws_iam_role.rds_enhanced_monitoring.arn
   enabled_cloudwatch_logs_exports       = ["postgresql"]
   iam_database_authentication_enabled   = true
   deletion_protection                   = true
