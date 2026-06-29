@@ -159,14 +159,17 @@ Instala Python, pipx, Ansible y utilidades basicas dentro de WSL:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-full python3-venv pipx unzip
-pipx ensurepath
-pipx install ansible
+sudo apt install -y python3 python3-full python3-venv unzip
+sudo apt install -y pipx
+command -v pipx
+pipx ensurepath || /usr/bin/pipx ensurepath
 source ~/.bashrc
+pipx install ansible || /usr/bin/pipx install ansible
 ansible --version
 ```
 
 > No uses `python3 -m pip install --user ansible` en Ubuntu reciente. Puede fallar con `externally-managed-environment` por PEP 668. `pipx` instala Ansible en un entorno aislado y evita romper Python del sistema.
+> Si `sudo apt install -y pipx` dice que no encuentra el paquete, ejecuta `sudo apt update` otra vez y vuelve a instalarlo.
 
 Tambien instala y configura AWS CLI dentro de WSL, porque los playbooks ejecutan comandos `aws`:
 
