@@ -1,0 +1,180 @@
+import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth/auth.guard';
+import { authInverseGuard } from './core/guards/auth/auth-inverse.guard';
+import { ProveedorComponent } from './pages/proveedor/proveedor.component';
+import { OperadoresComponent } from './pages/operadores/operadores.component';
+import { CategoriaPersonaComponent } from './pages/categoria-persona/categoria-persona.component';
+import { EstadoCotizacionComponent } from './pages/estado-cotizacion/estado-cotizacion.component';
+
+export const routes: Routes = [
+  {
+    path: 'auth',
+    loadChildren: () =>
+      import('./pages/auth/auth.routes').then(a => a.authRoutes),
+    canActivate: [authInverseGuard]
+  },
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'profile',
+    loadComponent: () =>
+      import('./pages/profile/profile.component').then(m => m.ProfileComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'personas',
+    loadComponent: () =>
+      import('./pages/personas/personas.component').then(m => m.PersonasComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'personas/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-persona/detalle-persona.component').then(m => m.DetallePersonaComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'juridico/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-juridico/detalle-juridico.component').then(m => m.DetalleJuridicoComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'cotizaciones',
+    loadComponent: () =>
+      import('./pages/cotizaciones/cotizaciones.component').then(m => m.CotizacionesComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'cotizaciones/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-cotizacion/detalle-cotizacion.component').then(m => m.DetalleCotizacionComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'counters',
+    loadComponent: () =>
+      import('./pages/counters/counters.component').then(m => m.CountersComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'sucursales',
+    loadComponent: () =>
+      import('./pages/sucursales/sucursales.component').then(m => m.SucursalesComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'liquidaciones',
+    loadComponent: () =>
+      import('./pages/liquidaciones/liquidaciones.component').then(m => m.LiquidacionesComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'liquidaciones/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-liquidacion/detalle-liquidacion.component').then(m => m.DetalleLiquidacionComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'productos',
+    loadComponent: () =>
+      import('./pages/productos/productos.component').then(m => m.ProductosComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'estado-cotizacion',
+    component: EstadoCotizacionComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'formas-pago',
+    loadComponent: () =>
+      import('./pages/forma-pago/forma-pago.component').then(m => m.FormaPagoComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'categorias',
+    loadComponent: () =>
+      import('./pages/categorias/categorias.component').then(m => m.CategoriasComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'proveedores',
+    component: ProveedorComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'proveedores/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-proveedor/detalle-proveedor.component').then(m => m.DetalleProveedorComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'categorias-persona',
+    component: CategoriaPersonaComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'operadores',
+    component: OperadoresComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'estadisticas',
+    loadComponent: () =>
+      import('./pages/estadistica/estadistica.component').then(m => m.EstadisticaComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'carpetas',
+    loadComponent: () =>
+      import('./pages/carpetas/carpetas.component').then(m => m.CarpetasComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'documentos',
+    loadComponent: () =>
+      import('./pages/documentos/documentos.component').then(m => m.DocumentosComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'documentos-cobranza',
+    loadComponent: () =>
+      import('./pages/documento-cobranza/documento-cobranza.component').then(m => m.DocumentoCobranzaComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'documentos-cobranza/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-documentoCobranza/detalle-documentoCobranza.component').then(m => m.DetalleDocumentoCobranzaComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'recibos',
+    loadComponent: () =>
+      import('./pages/recibo/recibo.component').then(m => m.ReciboComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'recibos/detalle/:id',
+    loadComponent: () =>
+      import('./pages/detalle-recibo/detalle-recibo.component').then(m => m.DetalleReciboComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'callback',
+    loadComponent: () =>
+      import('./pages/auth/callback/callback.component').then(m => m.CallbackComponent)
+  },
+  {
+    path: 'logout',
+    redirectTo: '/auth/login',
+    pathMatch: 'full'
+  },
+  { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
+  { path: '**', redirectTo: '/auth/login' }
+];

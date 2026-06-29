@@ -1,0 +1,1893 @@
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
+import { Subscription, of, from } from 'rxjs';
+import { catchError, finalize, tap, switchMap } from 'rxjs/operators';
+
+// Services
+import { LiquidacionService } from '../../core/service/Liquidacion/liquidacion.service';
+import { LoadingService } from '../../core/service/loading.service';
+import { MenuConfigService, ExtendedSidebarMenuItem } from '../../core/service/menu/menu-config.service';
+import { PersonaService } from '../../core/service/persona/persona.service';
+import { PersonaNaturalService } from '../../core/service/natural/persona-natural.service';
+import { PersonaJuridicaService } from '../../core/service/juridica/persona-juridica.service';
+import { ProductoService } from '../../core/service/Producto/producto.service';
+import { FormaPagoService } from '../../core/service/FormaPago/forma-pago.service';
+import { DetalleLiquidacionService } from '../../core/service/DetalleLiquidacion/detalle-liquidacion.service';
+import { ObservacionLiquidacionService } from '../../core/service/ObservacionLiquidacion/observacion-liquidacion';
+import { ProveedorService } from '../../core/service/Proveedor/proveedor.service';
+import { OperadorService } from '../../core/service/Operador/operador.service';
+import { ViajeroService } from '../../core/service/viajero/viajero.service';
+import { PagoPaxService } from '../../core/service/PagoPax/pago-pax.service';
+
+// Models
+import { LiquidacionConDetallesResponse, LiquidacionRequest } from '../../shared/models/Liquidacion/liquidacion.model';
+import { DetalleLiquidacionResponse, DetalleLiquidacionRequest } from '../../shared/models/Liquidacion/detalleLiquidacion.model';
+import { ObservacionLiquidacionRequest, ObservacionLiquidacionResponse } from '../../shared/models/Liquidacion/observacionLiquidacion.model';
+import { personaDisplay } from '../../shared/models/Persona/persona.model';
+import { ProductoResponse } from '../../shared/models/Producto/producto.model';
+import { FormaPagoResponse } from '../../shared/models/FormaPago/formaPago.model';
+import { PagoPaxRequest } from '../../shared/models/PagoPax/pagoPax.model.ts';
+
+// Interfaz extendida para observaciones con propiedades de edición
+interface ObservacionConEdicion extends ObservacionLiquidacionResponse {
+  editando?: boolean;
+  descripcionTemp?: string;
+}
+
+// Interfaz para pagos PAX temporales (antes de guardar en BD)
+interface PagoPaxTemp {
+  id?: number; // Si tiene id, ya existe en BD; si no, es nuevo
+  monto: number;
+  moneda: string;
+  detalle?: string;
+  formaPagoId?: number;
+  formaPago?: FormaPagoResponse;
+  creado?: string;
+  actualizado?: string;
+  isTemporary?: boolean; // true si es nuevo y no está en BD
+}
+
+import { ProveedorResponse } from '../../shared/models/Proveedor/proveedor.model';
+import { OperadorResponse } from '../../shared/models/Operador/operador.model';
+import { ViajeroResponse, ViajeroConPersonaNatural } from '../../shared/models/Viajero/viajero.model';
+
+// Components
+import { SidebarComponent, SidebarMenuItem } from '../../shared/components/sidebar/sidebar.component';
+
+@Component({
+  selector: 'app-detalle-liquidacion',
+  standalone: true,
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, SidebarComponent],
+  templateUrl: './detalle-liquidacion.component.html',
+  styleUrls: ['./detalle-liquidacion.component.css']
+})
+export class DetalleLiquidacionComponent implements OnInit, OnDestroy {
+
+  // ===== PERSISTENCE KEYS =====
+  private readonly STORAGE_KEYS = {
+    LIQUIDACION_DETALLE: 'liquidacion_detalle_data',
+    FORM_STATE: 'liquidacion_detalle_form_state',
+    DETALLES_STATE: 'liquidacion_detalles_state'
+  };
+
+  // Flag para evitar sobrescribir datos restaurados
+  private estadoTemporalRestaurado = false;
+
+  // Services
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private liquidacionService = inject(LiquidacionService);
+  private loadingService = inject(LoadingService);
+  private menuConfigService = inject(MenuConfigService);
+  private personaService = inject(PersonaService);
+  private personaNaturalService = inject(PersonaNaturalService);
+  private personaJuridicaService = inject(PersonaJuridicaService);
+  private productoService = inject(ProductoService);
+  private formaPagoService = inject(FormaPagoService);
+  private detalleLiquidacionService = inject(DetalleLiquidacionService);
+  private observacionLiquidacionService = inject(ObservacionLiquidacionService);
+  private proveedorService = inject(ProveedorService);
+  private operadorService = inject(OperadorService);
+  private viajeroService = inject(ViajeroService);
+  private pagoPaxService = inject(PagoPaxService);
+  private fb = inject(FormBuilder);
+
+  // Data
+  liquidacion: LiquidacionConDetallesResponse | null = null;
+  liquidacionId: number | null = null;
+  productos: ProductoResponse[] = [];
+  formasPago: FormaPagoResponse[] = [];
+  proveedores: ProveedorResponse[] = [];
+  operadores: OperadorResponse[] = [];
+  viajeros: ViajeroConPersonaNatural[] = [];
+
+  // Search/Filter state for dropdowns
+  viajerosFiltrados: { [index: string]: ViajeroConPersonaNatural[] } = {};
+  viajeroSearchTerms: { [index: string]: string } = {};
+  viajeroDropdownsOpen: { [index: string]: boolean } = {};
+
+  // Form
+  liquidacionForm: FormGroup;
+  detalleForm: FormGroup;
+
+  // Cache for personas
+  personasCache: { [id: number]: any } = {};
+  personasDisplayMap: { [id: number]: string } = {};
+
+  // UI State
+  isLoading = false;
+  error: string | null = null;
+  sidebarCollapsed = false;
+  modoEdicion = false; // Nueva propiedad para controlar modo edición
+  descargandoExcel = false;
+
+  // Sidebar State
+  sidebarMenuItems: ExtendedSidebarMenuItem[] = [];
+
+  // Observaciones múltiples
+  observaciones: ObservacionConEdicion[] = [];
+  nuevaObservacion: string = '';
+
+  // Detalles fijos como en cotizaciones
+  detallesFijos: DetalleLiquidacionRequest[] = [];
+
+  // Array para rastrear IDs de detalles eliminados que deben ser eliminados de la BD
+  detallesEliminados: number[] = [];
+
+  // ===== PAGOS PAX =====
+  pagosPax: PagoPaxTemp[] = [];
+  pagosPaxEliminados: number[] = []; // IDs de pagos PAX a eliminar al guardar
+  pagoPaxForm: FormGroup;
+  mostrandoFormularioPagoPax = false;
+  pagoPaxEditandoIndex: number | null = null; // Índice del pago que se está editando
+
+  // Control de guardado
+  private cambiosGuardados = false;
+  private saveDebounceTimer: any;
+
+  private subscriptions = new Subscription();
+
+  constructor() {
+    this.liquidacionForm = this.fb.group({
+      numero: [''],
+      fechaCompra: [''],
+      destino: [''],
+      numeroPasajeros: [0],
+      productoId: [null],
+      formaPagoId: [null]
+    });
+
+    // Formulario para agregar detalles
+    this.detalleForm = this.fb.group({
+      viajeroId: [''],
+      productoId: [''],
+      proveedorId: [''],
+      operadorId: [''],
+      ticket: [''],
+      documentoCobro: [''],
+      costoTicket: [0],
+      cargoServicio: [0],
+      valorVenta: [0],
+      feeEmision: [''],
+      documentoFee: [''],
+      comision: [''],
+      facturaCompra: [''],
+      boletaPasajero: [''],
+      montoDescuento: [0]
+    });
+
+    // Formulario para agregar pagos PAX (USD por defecto, pero permite PEN)
+    this.pagoPaxForm = this.fb.group({
+      monto: [0],
+      moneda: ['USD'], // USD por defecto
+      detalle: [''],
+      formaPagoId: [null]
+    });
+
+    // Suscribirse a cambios en costoTicket y valorVenta para calcular automáticamente cargoServicio
+    this.detalleForm.get('costoTicket')?.valueChanges.subscribe(value => {
+      this.calcularCargoServicioFormulario();
+    });
+
+    this.detalleForm.get('valorVenta')?.valueChanges.subscribe(value => {
+      this.calcularCargoServicioFormulario();
+    });
+  }
+
+  ngOnInit(): void {
+    this.initializeSidebar();
+    this.loadLiquidacionFromRoute();
+    this.loadSelectOptions();
+  }
+
+  ngOnDestroy(): void {
+    // Si no se guardaron cambios, limpiar el estado temporal
+    if (!this.cambiosGuardados) {
+      this.limpiarEstadoTemporal();
+    }
+    this.subscriptions.unsubscribe();
+  }
+
+  // ===== MÉTODOS PARA AUTOGUARDADO TEMPORAL =====
+
+  private getEstadoTemporalKey(): string {
+    return `detalle-liquidacion-${this.liquidacionId}-temporal`;
+  }
+
+  private guardarEstadoTemporal(): void {
+    if (!this.modoEdicion || !this.liquidacionId) {
+      return; // Solo guardar en modo edición
+    }
+
+    const estadoTemporal = {
+      liquidacionForm: this.liquidacionForm.value,
+      detalleForm: this.detalleForm.value,
+      detallesFijos: this.detallesFijos,
+      detallesOriginales: this.liquidacion?.detalles || [], // Guardar detalles originales
+      detallesEliminados: this.detallesEliminados, // Guardar detalles eliminados
+      pagosPax: this.pagosPax, // Guardar pagos PAX
+      pagosPaxEliminados: this.pagosPaxEliminados, // Guardar pagos PAX eliminados
+      viajeroSearchTerms: this.viajeroSearchTerms,
+      timestamp: new Date().getTime()
+    };
+
+    try {
+      const key = this.getEstadoTemporalKey();
+      sessionStorage.setItem(key, JSON.stringify(estadoTemporal));
+    } catch (error) {
+      console.warn('No se pudo guardar el estado temporal:', error);
+    }
+  }
+
+  private guardarEstadoTemporalDebounced(): void {
+    if (this.saveDebounceTimer) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+    this.saveDebounceTimer = setTimeout(() => {
+      this.guardarEstadoTemporal();
+    }, 500); // 500ms sin cambios antes de guardar
+  }
+
+  private cargarEstadoTemporal(): boolean {
+    if (!this.modoEdicion || !this.liquidacionId) {
+      return false;
+    }
+
+    try {
+      const key = this.getEstadoTemporalKey();
+      const estadoGuardado = sessionStorage.getItem(key);
+
+      if (!estadoGuardado) {
+        return false;
+      }
+
+      const estado = JSON.parse(estadoGuardado);
+      const tiempoTranscurrido = new Date().getTime() - estado.timestamp;
+
+      if (tiempoTranscurrido > 1800000) {
+        this.limpiarEstadoTemporal();
+        return false;
+      }
+
+      // Restaurar formularios
+      if (estado.liquidacionForm && this.liquidacionForm) {
+        this.liquidacionForm.patchValue(estado.liquidacionForm);
+      }
+      if (estado.detalleForm && this.detalleForm) {
+        this.detalleForm.patchValue(estado.detalleForm);
+      }
+      if (estado.detallesFijos) {
+        this.detallesFijos = estado.detallesFijos;
+      }
+
+      // Restaurar detalles originales
+      if (estado.detallesOriginales && this.liquidacion?.detalles) {
+        // Restaurar solo los campos editables, manteniendo la estructura original
+        estado.detallesOriginales.forEach((detalleEstado: any, index: number) => {
+          if (this.liquidacion!.detalles![index]) {
+            const detalleOriginal = this.liquidacion!.detalles![index];
+
+            // Restaurar campos editables
+            detalleOriginal.ticket = this.sanitizeText(detalleEstado.ticket);
+            detalleOriginal.documentoCobro = this.sanitizeText(detalleEstado.documentoCobro);
+            detalleOriginal.costoTicket = detalleEstado.costoTicket || 0;
+            detalleOriginal.cargoServicio = detalleEstado.cargoServicio || 0;
+            detalleOriginal.valorVenta = detalleEstado.valorVenta || 0;
+            detalleOriginal.feeEmision = this.sanitizeText(detalleEstado.feeEmision);
+            detalleOriginal.documentoFee = this.sanitizeText(detalleEstado.documentoFee);
+            detalleOriginal.comision = this.sanitizeText(detalleEstado.comision);
+            detalleOriginal.facturaCompra = this.sanitizeText(detalleEstado.facturaCompra);
+            detalleOriginal.boletaPasajero = this.sanitizeText(detalleEstado.boletaPasajero);
+            detalleOriginal.montoDescuento = detalleEstado.montoDescuento || 0;
+
+            // Restaurar relaciones si están presentes
+            if (detalleEstado.viajero) {
+              detalleOriginal.viajero = detalleEstado.viajero;
+            }
+            if (detalleEstado.producto) {
+              detalleOriginal.producto = detalleEstado.producto;
+            }
+            if (detalleEstado.proveedor) {
+              detalleOriginal.proveedor = detalleEstado.proveedor;
+            }
+            if (detalleEstado.operador) {
+              detalleOriginal.operador = detalleEstado.operador;
+            }
+          }
+        });
+      }
+
+      // Restaurar detalles eliminados
+      if (estado.detallesEliminados) {
+        this.detallesEliminados = estado.detallesEliminados;
+      }
+
+      // Restaurar pagos PAX
+      if (estado.pagosPax) {
+        this.pagosPax = estado.pagosPax;
+      }
+
+      // Restaurar pagos PAX eliminados
+      if (estado.pagosPaxEliminados) {
+        this.pagosPaxEliminados = estado.pagosPaxEliminados;
+      }
+
+      if (estado.viajeroSearchTerms) {
+        this.viajeroSearchTerms = estado.viajeroSearchTerms;
+      }
+
+      // Reinicializar los valores de búsqueda después de restaurar el estado
+      setTimeout(() => {
+        this.reinicializarValoresBusqueda();
+        // También llamar initializeAllViajeroSearchValues para asegurar consistencia
+        this.initializeAllViajeroSearchValues();
+      }, 100);
+
+      return true;
+    } catch (error) {
+      this.limpiarEstadoTemporal();
+      return false;
+    }
+  }
+
+  private limpiarEstadoTemporal(): void {
+    try {
+      sessionStorage.removeItem(this.getEstadoTemporalKey());
+      // Limpiar arrays de eliminados
+      this.detallesEliminados = [];
+      this.pagosPaxEliminados = [];
+      // Limpiar arrays temporales
+      this.detallesFijos = [];
+      // Limpiar observación temporal
+      this.nuevaObservacion = '';
+    } catch (error) {
+      console.warn('Error al limpiar estado temporal:', error);
+    }
+  }
+
+  private configurarAutoguardado(): void {
+    if (!this.modoEdicion) {
+      return;
+    }
+
+    // Autoguardar cada 30 segundos cuando hay cambios
+    let timerAutoguardado: any;
+    const autoguardar = () => {
+      if (timerAutoguardado) {
+        clearTimeout(timerAutoguardado);
+      }
+      timerAutoguardado = setTimeout(() => {
+        this.guardarEstadoTemporal();
+      }, 30000); // 30 segundos
+    };
+
+    // Escuchar cambios en los formularios
+    this.liquidacionForm.valueChanges.subscribe(() => autoguardar());
+    this.detalleForm.valueChanges.subscribe(() => autoguardar());
+
+    // Guardar antes de cerrar ventana/pestaña
+    window.addEventListener('beforeunload', () => {
+      this.guardarEstadoTemporal();
+    });
+  }
+
+  private loadLiquidacionFromRoute(): void {
+    // Obtener el ID de la ruta
+    const idParam = this.route.snapshot.paramMap.get('id');
+
+    if (!idParam || isNaN(Number(idParam))) {
+      this.error = 'ID de liquidación inválido';
+      return;
+    }
+
+    // Verificar si viene en modo edición
+    const modoParam = this.route.snapshot.queryParamMap.get('modo');
+    this.modoEdicion = modoParam === 'editar';
+
+    // Resetear el estado de guardado al cargar una nueva liquidación
+    this.cambiosGuardados = false;
+
+    this.liquidacionId = Number(idParam);
+    this.loadLiquidacion(this.liquidacionId);
+  }
+
+  private loadLiquidacion(id: number): void {
+    this.isLoading = true;
+    this.error = null;
+
+    // Mostrar loading global
+    this.loadingService.setLoading(true);
+
+    const subscription = this.liquidacionService.getLiquidacionConDetalles(id)
+      .pipe(
+        catchError(error => {
+          console.error('Error al cargar liquidación:', error);
+          this.error = 'Error al cargar la liquidación. Por favor, intente nuevamente.';
+          return of(null);
+        }),
+        finalize(() => {
+          this.isLoading = false;
+          this.loadingService.setLoading(false);
+        })
+      )
+      .subscribe(liquidacion => {
+        if (!liquidacion) return;
+
+        const applyLiquidacion = (liq: LiquidacionConDetallesResponse) => {
+          this.liquidacion = liq;
+
+          // Inicializar el formulario (ya incluye carga de estado temporal)
+          this.initializeForm();
+
+          // Cargar observaciones de la liquidación
+          this.cargarObservacionesLiquidacion(liq.id);
+
+          // Cargar pagos PAX de la liquidación
+          this.loadPagosPax(liq.id);
+
+          // Extraer viajeros únicos de los detalles
+          this.extraerViajerosDeDetalles();
+
+          // Cargar información del cliente si existe cotización
+          if (liq.cotizacion?.personas?.id) {
+            this.loadClienteInfo(liq.cotizacion.personas.id);
+          }
+        };
+
+        // Si la cotización/persona no viene en ConDetalles, traerla desde getLiquidacionById
+        if (!liquidacion.cotizacion?.personas?.id) {
+          this.liquidacionService.getLiquidacionById(id).subscribe({
+            next: (liquidacionBasica) => {
+              if (liquidacionBasica?.cotizacion) {
+                applyLiquidacion({
+                  ...liquidacion,
+                  cotizacion: liquidacionBasica.cotizacion
+                });
+              } else {
+                applyLiquidacion(liquidacion);
+              }
+            },
+            error: () => {
+              applyLiquidacion(liquidacion);
+            }
+          });
+        } else {
+          applyLiquidacion(liquidacion);
+        }
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  private loadSelectOptions(): void {
+    // Cargar productos
+    const productosSubscription = this.productoService.getAllProductos()
+      .pipe(
+        catchError(error => {
+          console.error('Error al cargar productos:', error);
+          return of([]);
+        })
+      )
+      .subscribe(productos => {
+        this.productos = productos;
+      });
+
+    // Cargar formas de pago
+    const formasPagoSubscription = this.formaPagoService.getAllFormasPago()
+      .pipe(
+        catchError(() => {
+          return of([]);
+        })
+      )
+      .subscribe(formasPago => {
+        this.formasPago = formasPago;
+      });
+
+    // Cargar proveedores
+    const proveedoresSubscription = this.proveedorService.findAllProveedor()
+      .pipe(
+        catchError(() => {
+          return of([]);
+        })
+      )
+      .subscribe((proveedores: ProveedorResponse[]) => {
+        this.proveedores = proveedores;
+      });
+
+    // Cargar operadores
+    const operadoresSubscription = this.operadorService.findAllOperador()
+      .pipe(
+        catchError(() => {
+          return of([]);
+        })
+      )
+      .subscribe((operadores: OperadorResponse[]) => {
+        this.operadores = operadores;
+      });
+
+    // No cargar viajeros desde servicio separado, se obtienen de los detalles
+    // const viajerosSubscription = this.viajeroService.findAll()
+    //   .pipe(
+    //     catchError(() => {
+    //       return of([]);
+    //     })
+    //   )
+    //   .subscribe((viajeros: ViajeroResponse[]) => {
+    //     this.viajeros = viajeros;
+
+    //     // Inicializar los valores de búsqueda después de cargar los viajeros
+    //     setTimeout(() => {
+    //       this.initializeAllViajeroSearchValues();
+    //     }, 100);
+    //   });
+
+    this.subscriptions.add(productosSubscription);
+    this.subscriptions.add(formasPagoSubscription);
+    this.subscriptions.add(proveedoresSubscription);
+    this.subscriptions.add(operadoresSubscription);
+    // this.subscriptions.add(viajerosSubscription); // Comentado porque ya no se usa
+  }
+
+  // Navigation methods
+  volverALiquidaciones(): void {
+    this.router.navigate(['/liquidaciones']);
+  }
+
+  descargarLiquidacionExcel(): void {
+    if (!this.liquidacionId || this.descargandoExcel) {
+      return;
+    }
+
+    this.descargandoExcel = true;
+
+    const nombreBase = (this.liquidacion?.numero || `Liquidacion_${this.liquidacionId}`)
+      .toString()
+      .trim()
+      .replace(/[\\/:*?"<>|]+/g, '_');
+
+    const subscription = this.liquidacionService.generarExcel(this.liquidacionId)
+      .pipe(
+        catchError(error => {
+          console.error('Error al descargar el Excel de la liquidación:', error);
+          return of(null);
+        }),
+        finalize(() => {
+          this.descargandoExcel = false;
+        })
+      )
+      .subscribe(blob => {
+        if (!blob) {
+          return;
+        }
+
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${nombreBase || `Liquidacion_${this.liquidacionId}`}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  irAEditarLiquidacion(): void {
+    if (this.liquidacionId) {
+      // Cambiar a modo edición sin navegación adicional
+      this.modoEdicion = true;
+
+      // Esperar un momento para asegurar que los datos estén listos
+      setTimeout(() => {
+        if (this.viajeros.length > 0) {
+          this.initializeAllViajeroSearchValues();
+        } else {
+          setTimeout(() => {
+            this.initializeAllViajeroSearchValues();
+          }, 500);
+        }
+        // Inicializar los valores de búsqueda de viajeros para todos los detalles
+        this.initializeAllViajeroSearchValues();
+      }, 200);
+
+      // Actualizar la URL para reflejar el modo edición
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { modo: 'editar' },
+        queryParamsHandling: 'merge'
+      });
+    }
+  }
+
+  salirModoEdicion(): void {
+    this.modoEdicion = false;
+    // Limpiar estado temporal al salir del modo edición
+    this.limpiarEstadoTemporal();
+    // Remover el parámetro de modo edición de la URL
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { modo: null },
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  // Método para cargar observaciones
+  private cargarObservacionesLiquidacion(liquidacionId: number): void {
+    const subscription = this.observacionLiquidacionService.findByLiquidacionId(liquidacionId)
+      .pipe(
+        catchError(error => {
+          console.error('Error al cargar observaciones:', error);
+          return of([]);
+        })
+      )
+      .subscribe(observaciones => {
+        // Cargar todas las observaciones
+        this.observaciones = observaciones || [];
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  // Extraer viajeros únicos de los detalles de liquidación
+  private extraerViajerosDeDetalles(): void {
+    if (!this.liquidacion?.detalles) {
+      this.viajeros = [];
+      return;
+    }
+
+    // Extraer viajeros únicos que no sean null/undefined
+    const viajerosMap = new Map<number, ViajeroConPersonaNatural>();
+
+    this.liquidacion.detalles.forEach((detalle, idx) => {
+      if (detalle.viajero && detalle.viajero.id) {
+        viajerosMap.set(detalle.viajero.id, detalle.viajero);
+      }
+    });
+
+    const viajerosDeDetalles = Array.from(viajerosMap.values());
+
+    // SIEMPRE cargar todos los viajeros disponibles del backend
+    this.viajeroService.findAllWithPersonaNatural().subscribe({
+      next: (todosLosViajeros: ViajeroConPersonaNatural[]) => {
+        // Combinar: primero los de los detalles, luego el resto
+        const viajerosCombinados = new Map<number, ViajeroConPersonaNatural>();
+
+        // Agregar primero los viajeros de los detalles (si existen)
+        viajerosDeDetalles.forEach(v => viajerosCombinados.set(v.id, v));
+
+        // Luego agregar todos los del backend (esto actualizará los datos si hay cambios)
+        todosLosViajeros.forEach(v => viajerosCombinados.set(v.id, v));
+
+        this.viajeros = Array.from(viajerosCombinados.values());
+
+        // Inicializar búsqueda con los viajeros cargados
+        setTimeout(() => {
+          this.initializeAllViajeroSearchValues();
+        }, 100);
+      },
+      error: (error: any) => {
+        // Si falla, al menos usar los viajeros de los detalles
+        this.viajeros = viajerosDeDetalles;
+
+        // Inicializar búsqueda incluso en error
+        setTimeout(() => {
+          this.initializeAllViajeroSearchValues();
+        }, 100);
+      }
+    });
+  }  // Métodos para manejar observaciones múltiples
+  agregarObservacion(): void {
+    if (!this.nuevaObservacion?.trim() || !this.liquidacionId) {
+      return;
+    }
+
+    const observacionRequest: ObservacionLiquidacionRequest = {
+      descripcion: this.nuevaObservacion.trim(),
+      liquidacionId: this.liquidacionId
+    };
+
+    const subscription = this.observacionLiquidacionService.create(observacionRequest)
+      .pipe(
+        catchError(error => {
+          console.error('Error al crear observación:', error);
+          return of(null);
+        })
+      )
+      .subscribe(response => {
+        if (response) {
+          this.observaciones.push(response);
+          this.nuevaObservacion = '';
+        }
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  // Método para eliminar observación directamente
+  eliminarObservacion(observacion: ObservacionConEdicion): void {
+    const subscription = this.observacionLiquidacionService.delete(observacion.id)
+      .pipe(
+        catchError(error => {
+          console.error('Error al eliminar observación:', error);
+          return of(null);
+        })
+      )
+      .subscribe(response => {
+        this.observaciones = this.observaciones.filter(obs => obs.id !== observacion.id);
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  // Método para iniciar la edición de una observación
+  editarObservacion(observacion: ObservacionConEdicion): void {
+    // Cancelar cualquier otra edición activa
+    this.observaciones.forEach(obs => {
+      if (obs !== observacion) {
+        obs.editando = false;
+        delete obs.descripcionTemp;
+      }
+    });
+
+    // Activar modo edición para esta observación
+    observacion.editando = true;
+    observacion.descripcionTemp = observacion.descripcion;
+  }
+
+  // Método para guardar la edición de una observación
+  guardarEdicionObservacion(observacion: ObservacionConEdicion): void {
+    if (!observacion.descripcionTemp?.trim()) {
+      return;
+    }
+
+    const observacionRequest: ObservacionLiquidacionRequest = {
+      descripcion: observacion.descripcionTemp.trim(),
+      liquidacionId: this.liquidacionId!
+    };
+
+    const subscription = this.observacionLiquidacionService.update(observacion.id, observacionRequest)
+      .pipe(
+        catchError(error => {
+          console.error('Error al actualizar observación:', error);
+          return of(null);
+        })
+      )
+      .subscribe(response => {
+        if (response && observacion.descripcionTemp) {
+          // Actualizar la observación en la lista
+          observacion.descripcion = observacion.descripcionTemp.trim();
+          observacion.editando = false;
+          delete observacion.descripcionTemp;
+        }
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  // Método para cancelar la edición de una observación
+  cancelarEdicionObservacion(observacion: ObservacionConEdicion): void {
+    observacion.editando = false;
+    delete observacion.descripcionTemp;
+  }
+
+  // ===== MÉTODOS PARA PAGOS PAX =====
+
+  /**
+   * Cargar pagos PAX de la liquidación
+   */
+  private loadPagosPax(liquidacionId: number): void {
+    const subscription = this.pagoPaxService.findByLiquidacionId(liquidacionId)
+      .pipe(
+        catchError(error => {
+          console.error('Error al cargar pagos PAX:', error);
+          return of([]);
+        })
+      )
+      .subscribe(pagosPax => {
+        // Convertir PagoPaxResponse a PagoPaxTemp
+        this.pagosPax = (pagosPax || []).map(pago => ({
+          id: pago.id,
+          monto: pago.monto,
+          moneda: pago.moneda || 'USD',
+          detalle: pago.detalle,
+          formaPagoId: pago.formaPago?.id,
+          formaPago: pago.formaPago,
+          creado: pago.creado,
+          actualizado: pago.actualizado,
+          isTemporary: false
+        }));
+      });
+
+    this.subscriptions.add(subscription);
+  }
+
+  /**
+   * Mostrar formulario para agregar pago PAX (USD por defecto)
+   */
+  mostrarFormularioPagoPax(): void {
+    this.mostrandoFormularioPagoPax = true;
+    this.pagoPaxEditandoIndex = null;
+    this.pagoPaxForm.reset({
+      monto: 0,
+      moneda: 'USD', // USD por defecto
+      detalle: '',
+      formaPagoId: null
+    });
+  }
+
+  /**
+   * Agregar un nuevo pago PAX temporalmente (se guardará al guardar la liquidación)
+   */
+  agregarPagoPax(): void {
+    if (this.pagoPaxForm.invalid) {
+      return;
+    }
+
+    const formaPagoId = this.pagoPaxForm.value.formaPagoId;
+    const formaPago = formaPagoId ? this.formasPago.find(fp => fp.id === formaPagoId) : undefined;
+
+    const nuevoPagoPax: PagoPaxTemp = {
+      monto: this.pagoPaxForm.value.monto,
+      moneda: this.pagoPaxForm.value.moneda || 'USD',
+      detalle: this.pagoPaxForm.value.detalle,
+      formaPagoId: formaPagoId,
+      formaPago: formaPago,
+      isTemporary: true // Marca como temporal (no guardado en BD)
+    };
+
+    this.pagosPax.push(nuevoPagoPax);
+    this.cerrarFormularioPagoPax();
+
+    // Autoguardar estado temporal
+    this.guardarEstadoTemporal();
+  }
+
+  /**
+   * Editar un pago PAX existente (modificación temporal)
+   */
+  editarPagoPax(index: number): void {
+    const pago = this.pagosPax[index];
+    if (!pago) return;
+
+    this.mostrandoFormularioPagoPax = true;
+    this.pagoPaxEditandoIndex = index;
+    this.pagoPaxForm.patchValue({
+      monto: pago.monto,
+      moneda: pago.moneda || 'USD',
+      detalle: pago.detalle || '',
+      formaPagoId: pago.formaPagoId || null
+    });
+  }
+
+  /**
+   * Guardar cambios en un pago PAX editado (modificación temporal)
+   */
+  guardarEdicionPagoPax(): void {
+    if (this.pagoPaxEditandoIndex === null || this.pagoPaxForm.invalid) {
+      return;
+    }
+
+    const formaPagoId = this.pagoPaxForm.value.formaPagoId;
+    const formaPago = formaPagoId ? this.formasPago.find(fp => fp.id === formaPagoId) : undefined;
+
+    // Actualizar el pago en el array local
+    this.pagosPax[this.pagoPaxEditandoIndex] = {
+      ...this.pagosPax[this.pagoPaxEditandoIndex],
+      monto: this.pagoPaxForm.value.monto,
+      moneda: this.pagoPaxForm.value.moneda || 'USD',
+      detalle: this.pagoPaxForm.value.detalle,
+      formaPagoId: formaPagoId,
+      formaPago: formaPago
+    };
+
+    this.cerrarFormularioPagoPax();
+
+    // Autoguardar estado temporal
+    this.guardarEstadoTemporal();
+  }
+
+  /**
+   * Eliminar un pago PAX (marcado para eliminar al guardar)
+   */
+  eliminarPagoPax(index: number): void {
+    const pago = this.pagosPax[index];
+    if (!pago) return;
+
+    // Si tiene ID, agregarlo a la lista de eliminados
+    if (pago.id) {
+      this.pagosPaxEliminados.push(pago.id);
+    }
+
+    // Eliminar del array local
+    this.pagosPax.splice(index, 1);
+
+    // Autoguardar estado temporal
+    this.guardarEstadoTemporal();
+  }
+
+  /**
+   * Cerrar formulario de pago PAX
+   */
+  cerrarFormularioPagoPax(): void {
+    this.mostrandoFormularioPagoPax = false;
+    this.pagoPaxEditandoIndex = null;
+    this.pagoPaxForm.reset({
+      monto: 0,
+      moneda: 'USD', // USD por defecto
+      detalle: '',
+      formaPagoId: null
+    });
+  }
+
+  /**
+   * Calcular total de pagos PAX por moneda
+   */
+  getTotalPagosPaxPorMoneda(moneda: string): number {
+    return this.pagosPax
+      .filter(p => p.moneda === moneda)
+      .reduce((sum, p) => sum + p.monto, 0);
+  }
+
+  /**
+   * Calcular total general de pagos PAX (todos juntos)
+   */
+  getTotalPagosPax(): number {
+    return this.pagosPax.reduce((sum, p) => sum + p.monto, 0);
+  }
+
+  /**
+   * Obtener nombre de forma de pago
+   */
+  getFormaPagoNombre(formaPagoId: number | undefined): string {
+    if (!formaPagoId) return 'Sin especificar';
+    const formaPago = this.formasPago.find(fp => fp.id === formaPagoId);
+    return formaPago?.descripcion || 'Desconocida';
+  }
+
+  // Form methods
+  private initializeForm(): void {
+    // Cargar datos del servidor primero
+    if (this.liquidacion) {
+      this.liquidacionForm.patchValue({
+        numero: this.liquidacion.numero || '',
+        fechaCompra: this.liquidacion.fechaCompra || '',
+        destino: this.liquidacion.destino || '',
+        numeroPasajeros: this.liquidacion.numeroPasajeros || 0,
+        productoId: this.liquidacion.producto?.id || null,
+        formaPagoId: this.liquidacion.formaPago?.id || null
+      });
+    }
+
+    // Configurar autoguardado si estamos en modo edición
+    this.configurarAutoguardado();
+
+    // DESPUÉS de inicializar, esperar a que todos los datos async estén cargados
+    // y LUEGO intentar cargar estado temporal
+    this.esperarDatosAsyncYCargarEstado();
+  }
+
+  private esperarDatosAsyncYCargarEstado(): void {
+    // Verificar si todos los datos necesarios están cargados
+    const verificarDatos = () => {
+      const datosListos = this.viajeros.length > 0 &&
+        this.productos.length > 0 &&
+        this.proveedores.length > 0 &&
+        this.operadores.length > 0 &&
+        this.formasPago.length > 0;
+
+      if (datosListos) {
+        // Todos los datos están listos, intentar cargar estado temporal
+        setTimeout(() => {
+          this.cargarEstadoTemporal();
+        }, 200);
+      } else {
+        // Reintentar en 100ms
+        setTimeout(verificarDatos, 100);
+      }
+    };
+
+    // Iniciar la verificación
+    setTimeout(verificarDatos, 100);
+  }
+
+  guardarLiquidacion(): void {
+    if (!this.liquidacionId || !this.liquidacionForm.valid) {
+      console.error('Formulario inválido o ID de liquidación no disponible');
+      return;
+    }
+
+    this.isLoading = true;
+    this.loadingService.setLoading(true);
+
+    const liquidacionRequest: LiquidacionRequest = {
+      numero: this.liquidacionForm.value.numero,
+      fechaCompra: this.liquidacionForm.value.fechaCompra,
+      destino: this.liquidacionForm.value.destino,
+      numeroPasajeros: this.liquidacionForm.value.numeroPasajeros,
+      productoId: this.liquidacionForm.value.productoId,
+      formaPagoId: this.liquidacionForm.value.formaPagoId,
+      cotizacionId: this.liquidacion?.cotizacion?.id
+    };
+
+    // Guardar la liquidación principal y luego persistir todos los detalles de forma secuencial
+    const saveSubscription = this.liquidacionService.updateLiquidacion(this.liquidacionId, liquidacionRequest)
+      .pipe(
+        switchMap(() => from(this.guardarDetallesLiquidacion(this.liquidacionId!))),
+        switchMap(() => from(this.procesarPagosPax(this.liquidacionId!))),
+        tap(() => {
+          this.cambiosGuardados = true;
+          this.limpiarEstadoTemporal();
+          this.recargarDatos();
+        }),
+        catchError(error => {
+          console.error('Error al guardar la liquidación:', error);
+          this.error = 'Error al guardar los cambios. Por favor, intente nuevamente.';
+          return of(null);
+        }),
+        finalize(() => {
+          this.isLoading = false;
+          this.loadingService.setLoading(false);
+        })
+      )
+      .subscribe();
+
+    this.subscriptions.add(saveSubscription);
+  }
+
+  private buildDetalleRequestFromExistente(detalle: DetalleLiquidacionResponse, liquidacionId: number): DetalleLiquidacionRequest {
+    return {
+      viajeroId: detalle.viajero?.id,
+      productoId: detalle.producto?.id,
+      proveedorId: detalle.proveedor?.id,
+      operadorId: detalle.operador?.id,
+      ticket: this.sanitizeText(detalle.ticket),
+      documentoCobro: this.sanitizeText(detalle.documentoCobro),
+      costoTicket: detalle.costoTicket || 0,
+      cargoServicio: detalle.cargoServicio || 0,
+      valorVenta: detalle.valorVenta || 0,
+      feeEmision: this.sanitizeText(detalle.feeEmision),
+      documentoFee: this.sanitizeText(detalle.documentoFee),
+      comision: this.sanitizeText(detalle.comision),
+      facturaCompra: this.sanitizeText(detalle.facturaCompra),
+      boletaPasajero: this.sanitizeText(detalle.boletaPasajero),
+      montoDescuento: detalle.montoDescuento || 0,
+      liquidacionId: liquidacionId
+    };
+  }
+
+  private buildDetalleRequestFromFijo(detalle: DetalleLiquidacionRequest, liquidacionId: number): DetalleLiquidacionRequest {
+    return {
+      viajeroId: detalle.viajeroId,
+      productoId: detalle.productoId,
+      proveedorId: detalle.proveedorId,
+      operadorId: detalle.operadorId,
+      ticket: this.sanitizeText(detalle.ticket),
+      documentoCobro: this.sanitizeText(detalle.documentoCobro),
+      costoTicket: Number(detalle.costoTicket) || 0,
+      cargoServicio: Number(detalle.cargoServicio) || 0,
+      valorVenta: Number(detalle.valorVenta) || 0,
+      feeEmision: this.sanitizeText(detalle.feeEmision),
+      documentoFee: this.sanitizeText(detalle.documentoFee),
+      comision: this.sanitizeText(detalle.comision),
+      facturaCompra: this.sanitizeText(detalle.facturaCompra),
+      boletaPasajero: this.sanitizeText(detalle.boletaPasajero),
+      montoDescuento: Number(detalle.montoDescuento) || 0,
+      liquidacionId: liquidacionId
+    };
+  }
+
+  private hasDetalleContenido(detalle: DetalleLiquidacionRequest): boolean {
+    return Boolean(
+      detalle.viajeroId ||
+      detalle.productoId ||
+      detalle.proveedorId ||
+      detalle.operadorId ||
+      this.sanitizeText(detalle.ticket) ||
+      this.sanitizeText(detalle.documentoCobro) ||
+      this.sanitizeText(detalle.feeEmision) ||
+      this.sanitizeText(detalle.documentoFee) ||
+      this.sanitizeText(detalle.comision) ||
+      this.sanitizeText(detalle.facturaCompra) ||
+      this.sanitizeText(detalle.boletaPasajero) ||
+      (Number(detalle.costoTicket) || 0) > 0 ||
+      (Number(detalle.cargoServicio) || 0) > 0 ||
+      (Number(detalle.valorVenta) || 0) > 0 ||
+      (Number(detalle.montoDescuento) || 0) > 0
+    );
+  }
+
+  private async guardarDetallesLiquidacion(liquidacionId: number): Promise<void> {
+    // 0) Eliminar detalles marcados
+    if (this.detallesEliminados.length > 0) {
+      const deletePromises = this.detallesEliminados.map(id =>
+        this.detalleLiquidacionService.deleteDetalleLiquidacion(id).toPromise()
+      );
+      await Promise.all(deletePromises);
+      this.detallesEliminados = [];
+    }
+
+    // 1) Actualizar detalles existentes
+    const updatePromises: Array<Promise<any>> = [];
+    if (this.liquidacion?.detalles) {
+      this.liquidacion.detalles.forEach(detalle => {
+        if (detalle.id) {
+          const detalleRequest = this.buildDetalleRequestFromExistente(detalle, liquidacionId);
+          updatePromises.push(
+            this.detalleLiquidacionService.updateDetalleLiquidacion(detalle.id, detalleRequest).toPromise()
+          );
+        }
+      });
+    }
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
+
+    // 2) Crear detalles nuevos
+    const createPromises: Array<Promise<any>> = [];
+    this.detallesFijos.forEach(detalle => {
+      if (this.hasDetalleContenido(detalle)) {
+        const detalleRequest = this.buildDetalleRequestFromFijo(detalle, liquidacionId);
+        createPromises.push(
+          this.detalleLiquidacionService.createDetalleLiquidacion(liquidacionId, detalleRequest).toPromise()
+        );
+      }
+    });
+    if (createPromises.length > 0) {
+      await Promise.all(createPromises);
+    }
+  }
+
+  /**
+   * Procesar pagos PAX: crear nuevos, actualizar existentes, eliminar marcados
+   */
+  private async procesarPagosPax(liquidacionId: number): Promise<void> {
+    try {
+      // 1. Eliminar pagos marcados para eliminación
+      if (this.pagosPaxEliminados.length > 0) {
+        const deletePromises = this.pagosPaxEliminados.map(id =>
+          this.pagoPaxService.delete(id).toPromise()
+        );
+        await Promise.all(deletePromises);
+        this.pagosPaxEliminados = [];
+      }
+
+      // 2. Procesar cada pago PAX (crear o actualizar)
+      for (const pago of this.pagosPax) {
+        const pagoPaxRequest: PagoPaxRequest = {
+          monto: pago.monto,
+          moneda: pago.moneda,
+          detalle: pago.detalle,
+          liquidacionId: liquidacionId,
+          formaPagoId: pago.formaPagoId!
+        };
+
+        if (pago.id && !pago.isTemporary) {
+          // Actualizar existente
+          await this.pagoPaxService.update(pago.id, pagoPaxRequest).toPromise();
+        } else {
+          // Crear nuevo
+          const response = await this.pagoPaxService.create(pagoPaxRequest).toPromise();
+          // Actualizar el pago con el ID recibido
+          if (response) {
+            pago.id = response.id;
+            pago.isTemporary = false;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al procesar pagos PAX:', error);
+      throw error;
+    }
+  }
+
+  recargarDatos(): void {
+    // Recargar los datos actualizados después de un breve delay
+    setTimeout(() => {
+      this.loadLiquidacion(this.liquidacionId!);
+      // Salir del modo edición
+      this.salirModoEdicion();
+    }, 1000);
+  }
+
+  // Métodos para detalles fijos
+  agregarDetalleFijo(): void {
+    if (this.detalleForm.invalid) {
+      return;
+    }
+
+    const formValue = this.detalleForm.value;
+
+    const nuevoDetalle: DetalleLiquidacionRequest = {
+      viajeroId: formValue.viajeroId ? Number(formValue.viajeroId) : undefined,
+      productoId: formValue.productoId ? Number(formValue.productoId) : undefined,
+      proveedorId: formValue.proveedorId ? Number(formValue.proveedorId) : undefined,
+      operadorId: formValue.operadorId ? Number(formValue.operadorId) : undefined,
+      ticket: this.sanitizeText(formValue.ticket),
+      documentoCobro: this.sanitizeText(formValue.documentoCobro),
+      costoTicket: Number(formValue.costoTicket) || 0,
+      cargoServicio: Number(formValue.cargoServicio) || 0,
+      valorVenta: Number(formValue.valorVenta) || 0,
+      feeEmision: this.sanitizeText(formValue.feeEmision),
+      documentoFee: this.sanitizeText(formValue.documentoFee),
+      comision: this.sanitizeText(formValue.comision),
+      facturaCompra: this.sanitizeText(formValue.facturaCompra),
+      boletaPasajero: this.sanitizeText(formValue.boletaPasajero),
+      montoDescuento: Number(formValue.montoDescuento) || 0
+    };
+
+    this.detallesFijos.push(nuevoDetalle); // Agregar al final de la lista
+
+    // Inicializar el valor de búsqueda para la nueva fila si tiene viajero seleccionado
+    const nuevoIndice = this.detallesFijos.length - 1; // Índice de la fila recién agregada
+    if (nuevoDetalle.viajeroId) {
+      // Usar setTimeout para permitir que Angular detecte los cambios primero
+      setTimeout(() => {
+        this.initViajeroSearchValue(`detalle-fijo-${nuevoIndice}`, nuevoDetalle.viajeroId!);
+      }, 10);
+    }
+
+    // Limpiar formulario
+    this.detalleForm.reset({
+      viajeroId: '',
+      productoId: '',
+      proveedorId: '',
+      operadorId: '',
+      ticket: '',
+      costoTicket: 0,
+      cargoServicio: 0,
+      valorVenta: 0,
+      facturaCompra: '',
+      boletaPasajero: '',
+      montoDescuento: 0,
+      pagoPaxUSD: 0,
+      pagoPaxPEN: 0
+    });
+
+    // Limpiar también el estado de búsqueda del viajero
+    this.viajeroSearchTerms['nuevo'] = '';
+    this.viajerosFiltrados['nuevo'] = [...this.viajeros];
+    this.viajeroDropdownsOpen['nuevo'] = false;
+  }
+
+  eliminarDetalleFijo(index: number): void {
+    this.detallesFijos.splice(index, 1);
+    // Autoguardar estado temporal
+    this.guardarEstadoTemporal();
+  }
+
+  eliminarDetalleOriginal(index: number): void {
+    if (this.liquidacion?.detalles) {
+      const detalleAEliminar = this.liquidacion.detalles[index];
+
+      // Si el detalle tiene ID, agregarlo a la lista de eliminados
+      if (detalleAEliminar?.id) {
+        this.detallesEliminados.push(detalleAEliminar.id);
+      }
+
+      // Eliminar del array local
+      this.liquidacion.detalles.splice(index, 1);
+
+      // Autoguardar estado temporal
+      this.guardarEstadoTemporal();
+    }
+  }
+
+  irAEditarLiquidacionOld(): void {
+    if (this.liquidacionId) {
+      this.router.navigate(['/liquidaciones'], {
+        queryParams: { editId: this.liquidacionId }
+      });
+    }
+  }
+
+  // Sidebar methods
+  private initializeSidebar(): void {
+    this.sidebarMenuItems = this.menuConfigService.getMenuItemsWithActiveRoute();
+  }
+
+  onToggleSidebar(): void {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+  }
+
+  onSidebarItemClick(item: SidebarMenuItem): void {
+    if (item.route) {
+      this.router.navigate([item.route]);
+    }
+  }
+
+  // Utility methods
+  trackByDetalle(index: number, detalle: DetalleLiquidacionResponse): number {
+    return detalle.id;
+  }
+
+  private sanitizeText(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    const text = String(value).trim();
+    if (text === 'undefined' || text === 'null') {
+      return '';
+    }
+    return text;
+  }
+
+  // trackBy para detalles fijos (que son temporales y no tienen ID)
+  trackByIndex(index: number): number {
+    return index;
+  }
+
+  // Método para manejar cambios en los campos de detalles fijos editables
+  onProductoChange(index: number, field: string, value: any): void {
+    if (index >= 0 && index < this.detallesFijos.length) {
+      const detalle = this.detallesFijos[index];
+
+      switch (field) {
+        case 'viajeroId':
+          detalle.viajeroId = value ? Number(value) : undefined;
+          break;
+        case 'productoId':
+          detalle.productoId = value ? Number(value) : undefined;
+          break;
+        case 'proveedorId':
+          detalle.proveedorId = value ? Number(value) : undefined;
+          break;
+        case 'operadorId':
+          detalle.operadorId = value ? Number(value) : undefined;
+          break;
+        case 'ticket':
+          detalle.ticket = this.sanitizeText(value);
+          break;
+        case 'documentoCobro':
+          detalle.documentoCobro = this.sanitizeText(value);
+          break;
+        case 'costoTicket':
+          detalle.costoTicket = value ? Number(value) : 0;
+          // Calcular automáticamente el cargo por servicio
+          this.calcularCargoServicio(detalle);
+          break;
+        case 'cargoServicio':
+          detalle.cargoServicio = value ? Number(value) : 0;
+          break;
+        case 'valorVenta':
+          detalle.valorVenta = value ? Number(value) : 0;
+          // Calcular automáticamente el cargo por servicio
+          this.calcularCargoServicio(detalle);
+          break;
+        case 'feeEmision':
+          detalle.feeEmision = this.sanitizeText(value);
+          break;
+        case 'documentoFee':
+          detalle.documentoFee = this.sanitizeText(value);
+          break;
+        case 'comision':
+          detalle.comision = this.sanitizeText(value);
+          break;
+        case 'facturaCompra':
+          detalle.facturaCompra = this.sanitizeText(value);
+          break;
+        case 'boletaPasajero':
+          detalle.boletaPasajero = this.sanitizeText(value);
+          break;
+        case 'montoDescuento':
+          detalle.montoDescuento = value ? Number(value) : 0;
+          break;
+        default:
+          console.warn('Campo no reconocido:', field);
+          break;
+      }
+
+      // Autoguardar estado temporal
+      this.guardarEstadoTemporal();
+    }
+  }
+
+  // Método para manejar cambios en los detalles originales (los que vienen de la base de datos)
+  onDetalleOriginalChange(index: number, field: string, value: any): void {
+
+    if (this.liquidacion && this.liquidacion.detalles &&
+      index >= 0 && index < this.liquidacion.detalles.length) {
+      const detalle = this.liquidacion.detalles[index];
+
+      switch (field) {
+        case 'viajeroId':
+          // Buscar el viajero por ID y asignarlo
+          const viajeroId = value ? Number(value) : null;
+          const viajero = this.viajeros.find(v => v.id === viajeroId);
+          if (viajero) {
+            detalle.viajero = viajero;
+          }
+          break;
+        case 'productoId':
+          // Buscar el producto por ID y asignarlo
+          const productoId = value ? Number(value) : null;
+          const producto = this.productos.find(p => p.id === productoId);
+          if (producto) {
+            detalle.producto = producto;
+          }
+          break;
+        case 'proveedorId':
+          // Buscar el proveedor por ID y asignarlo
+          const proveedorId = value ? Number(value) : null;
+          const proveedor = this.proveedores.find(p => p.id === proveedorId);
+          if (proveedor) {
+            detalle.proveedor = proveedor;
+          }
+          break;
+        case 'operadorId':
+          // Buscar el operador por ID y asignarlo
+          const operadorId = value ? Number(value) : null;
+          const operador = this.operadores.find(o => o.id === operadorId);
+          if (operador) {
+            detalle.operador = operador;
+          }
+          if (operador) {
+            detalle.operador = operador;
+          }
+          break;
+        case 'ticket':
+          detalle.ticket = this.sanitizeText(value);
+          break;
+        case 'documentoCobro':
+          detalle.documentoCobro = this.sanitizeText(value);
+          break;
+        case 'costoTicket':
+          detalle.costoTicket = value ? Number(value) : 0;
+          // Calcular automáticamente el cargo por servicio
+          this.calcularCargoServicio(detalle);
+          break;
+        case 'cargoServicio':
+          detalle.cargoServicio = value ? Number(value) : 0;
+          break;
+        case 'valorVenta':
+          detalle.valorVenta = value ? Number(value) : 0;
+          // Calcular automáticamente el cargo por servicio
+          this.calcularCargoServicio(detalle);
+          break;
+        case 'feeEmision':
+          detalle.feeEmision = this.sanitizeText(value);
+          break;
+        case 'documentoFee':
+          detalle.documentoFee = this.sanitizeText(value);
+          break;
+        case 'comision':
+          detalle.comision = this.sanitizeText(value);
+          break;
+        case 'facturaCompra':
+          detalle.facturaCompra = this.sanitizeText(value);
+          break;
+        case 'boletaPasajero':
+          detalle.boletaPasajero = this.sanitizeText(value);
+          break;
+        case 'montoDescuento':
+          detalle.montoDescuento = value ? Number(value) : 0;
+          break;
+        default:
+          console.warn('Campo no reconocido:', field);
+          break;
+      }
+
+      // Autoguardar estado temporal
+      this.guardarEstadoTemporalDebounced();
+    }
+  }
+
+  // Calcular totales para la vista
+  get totalCostoTickets(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) =>
+      sum + (detalle.costoTicket || 0), 0);
+  }
+
+  get totalCargoServicio(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    const total = this.liquidacion.detalles.reduce((sum, detalle) =>
+      sum + (detalle.cargoServicio || 0), 0);
+    return Math.round(total * 100) / 100; // Redondear a 2 decimales
+  }
+
+  get totalValorVenta(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) =>
+      sum + (detalle.valorVenta || 0), 0);
+  }
+
+  get totalMontoDescuento(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) =>
+      sum + (detalle.montoDescuento || 0), 0);
+  }
+
+  get totalPagoPaxUSD(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) =>
+      sum + (detalle.pagoPaxUSD || 0), 0);
+  }
+
+  get totalPagoPaxPEN(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) =>
+      sum + (detalle.pagoPaxPEN || 0), 0);
+  }
+
+  get totalBoletaPasajero(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) => {
+      // Verificar si es un número puro (sin texto mezclado)
+      const boletaStr = detalle.boletaPasajero ? detalle.boletaPasajero.toString().trim() : '';
+      // Solo sumar si es un número válido completo (no contiene letras)
+      if (boletaStr && /^-?\d+\.?\d*$/.test(boletaStr)) {
+        const boletaValue = parseFloat(boletaStr);
+        return sum + (isNaN(boletaValue) ? 0 : boletaValue);
+      }
+      return sum;
+    }, 0);
+  }
+
+  get totalFacturaCompra(): number {
+    if (!this.liquidacion?.detalles) return 0;
+    return this.liquidacion.detalles.reduce((sum, detalle) => {
+      // Verificar si es un número puro (sin texto mezclado)
+      const facturaStr = detalle.facturaCompra ? detalle.facturaCompra.toString().trim() : '';
+      // Solo sumar si es un número válido completo (no contiene letras)
+      if (facturaStr && /^-?\d+\.?\d*$/.test(facturaStr)) {
+        const facturaValue = parseFloat(facturaStr);
+        return sum + (isNaN(facturaValue) ? 0 : facturaValue);
+      }
+      return sum;
+    }, 0);
+  }
+
+  // Método para calcular automáticamente el cargo por servicio
+  calcularCargoServicio(detalle: any): void {
+    const valorVenta = detalle.valorVenta || 0;
+    const costoTicket = detalle.costoTicket || 0;
+
+    // Solo calcular automáticamente si ambos valores están presentes
+    if (valorVenta > 0 && costoTicket >= 0) {
+      detalle.cargoServicio = Math.round((valorVenta - costoTicket) * 100) / 100;
+    }
+  }
+
+  // Método para calcular automáticamente el cargo por servicio en el formulario
+  calcularCargoServicioFormulario(): void {
+    const valorVenta = this.detalleForm.get('valorVenta')?.value || 0;
+    const costoTicket = this.detalleForm.get('costoTicket')?.value || 0;
+
+    // Solo calcular automáticamente si ambos valores están presentes
+    if (valorVenta > 0 && costoTicket >= 0) {
+      const cargoServicio = Math.round((valorVenta - costoTicket) * 100) / 100;
+      this.detalleForm.get('cargoServicio')?.setValue(cargoServicio, { emitEvent: false });
+    }
+  }
+
+  // Persona display methods
+  loadClienteInfo(personaId: number): void {
+    if (!personaId || this.personasCache[personaId]) {
+      return;
+    }
+
+    // Cargar datos desde PersonaService usando personaDisplay
+    this.personaService.findPersonaNaturalOrJuridicaById(personaId).subscribe({
+      next: (cached: personaDisplay) => {
+        this.personasCache[personaId] = cached;
+        this.personasDisplayMap[personaId] = `${cached.tipo === 'JURIDICA' ? 'RUC' : 'DNI'}: ${cached.identificador} - ${cached.nombre}`;
+      },
+      error: (error: any) => {
+        console.error('Error al cargar información del cliente:', error);
+        this.personasDisplayMap[personaId] = 'Cliente no encontrado';
+      }
+    });
+  }
+
+  getPersonaDisplayName(personaId: number): string {
+    if (!personaId || personaId === 0) {
+      return 'Sin cliente';
+    }
+
+    if (this.personasDisplayMap[personaId]) {
+      return this.personasDisplayMap[personaId];
+    }
+
+    // Si no está en cache, retornar texto temporal
+    return 'Cargando...';
+  }
+
+  getClienteInfo(): string {
+    if (this.liquidacion?.cotizacion?.personas?.id) {
+      return this.getClienteNombreSolo(this.liquidacion.cotizacion.personas.id);
+    }
+    return 'Sin cliente asignado';
+  }
+
+  /**
+   * Obtiene solo el nombre del cliente sin documento
+   */
+  getClienteNombreSolo(personaId: number): string {
+    if (!personaId || personaId === 0) {
+      return 'Sin cliente';
+    }
+
+    // Buscar en cache
+    const persona = this.personasCache[personaId];
+    if (persona && persona.nombre) {
+      // Limpiar cualquier texto "null" que pueda existir en el nombre
+      const nombreLimpio = persona.nombre
+        .split(' ')
+        .filter((parte: string) => parte && parte !== 'null' && parte !== 'undefined')
+        .join(' ')
+        .trim();
+
+      return nombreLimpio || 'Sin nombre';
+    }
+
+    return 'Cliente no encontrado';
+  }
+
+  // Método auxiliar para obtener el nombre del viajero por ID
+  getViajeroDisplayName(viajeroId: number | undefined): string {
+    if (!viajeroId) return 'Sin viajero';
+
+    const viajero = this.viajeros.find(v => v.id === viajeroId);
+    if (viajero && viajero.personaNatural) {
+      return `${viajero.personaNatural.nombres} ${viajero.personaNatural.apellidosPaterno}`;
+    }
+
+    return 'Viajero no encontrado';
+  }
+
+  // Método auxiliar para obtener el nombre del proveedor por ID
+  getProveedorDisplayName(proveedorId: number | undefined): string {
+    if (!proveedorId) return 'Sin proveedor';
+
+    const proveedor = this.proveedores.find(p => p.id === proveedorId);
+    if (proveedor) {
+      return proveedor.nombre;
+    }
+
+    return 'Proveedor no encontrado';
+  }
+
+  // Método auxiliar para obtener el nombre del operador por ID
+  getOperadorDisplayName(operadorId: number | undefined): string {
+    if (!operadorId) return 'Sin operador';
+
+    const operador = this.operadores.find(o => o.id === operadorId);
+    if (operador) {
+      return operador.nombre || 'Sin nombre';
+    }
+
+    return 'Operador no encontrado';
+  }
+
+  // Método auxiliar para obtener el tipo de producto por ID
+  getProductoDisplayName(productoId: number | undefined): string {
+    if (!productoId) return 'Sin producto';
+
+    const producto = this.productos.find(p => p.id === productoId);
+    if (producto) {
+      return producto.tipo;
+    }
+
+    return 'Producto no encontrado';
+  }
+
+  // Método para agregar un nuevo producto
+  agregarProducto(): void {
+    const nuevoDetalle = {
+      viajeroId: 0,
+      productoId: 0,
+      proveedorId: 0,
+      ticket: '',
+      operadorId: 0,
+      costoTicket: 0,
+      cargoServicio: 0,
+      valorVenta: 0,
+      facturaCompra: '',
+      boletaPasajero: '',
+      montoDescuento: 0,
+      pagoPaxUSD: 0,
+      pagoPaxPEN: 0
+    };
+
+    this.detallesFijos.push(nuevoDetalle);
+
+    // Limpiar también el estado de búsqueda del viajero
+    this.viajeroSearchTerms['nuevo'] = '';
+    this.viajerosFiltrados['nuevo'] = [...this.viajeros];
+    this.viajeroDropdownsOpen['nuevo'] = false;
+  }
+
+  cancelar(): void {
+    this.volverALiquidaciones();
+  }
+
+  guardar(): void {
+    this.guardarLiquidacion();
+  }
+
+  // ===== MÉTODOS PARA BÚSQUEDA FILTRABLE DE VIAJEROS =====
+
+  // Inicializar los viajeros filtrados para un índice específico
+  initViajeroSearch(index: string): void {
+    if (!this.viajerosFiltrados[index]) {
+      this.viajerosFiltrados[index] = [...this.viajeros]; // Mostrar todos al inicio
+      // Solo inicializar el término de búsqueda si no existe
+      if (!this.viajeroSearchTerms[index]) {
+        this.viajeroSearchTerms[index] = '';
+      }
+      this.viajeroDropdownsOpen[index] = false;
+    }
+  }
+
+  // Obtener los viajeros filtrados para un índice
+  getViajerosFiltrados(index: string): ViajeroConPersonaNatural[] {
+    return this.viajerosFiltrados[index] || [];
+  }
+
+  // Manejar la búsqueda de viajeros
+  onViajeroSearch(index: string, searchTerm: string): void {
+    this.viajeroSearchTerms[index] = searchTerm;
+
+    // Asegurar que el dropdown esté abierto
+    this.viajeroDropdownsOpen[index] = true;
+
+    if (!searchTerm.trim()) {
+      // Si no hay término de búsqueda, mostrar todos
+      this.viajerosFiltrados[index] = [...this.viajeros];
+    } else {
+      // Filtrar viajeros que contengan el término de búsqueda (nombres o apellidos)
+      this.viajerosFiltrados[index] = this.viajeros.filter(viajero => {
+        if (!viajero.personaNatural) {
+          return false;
+        }
+        const nombreCompleto = `${viajero.personaNatural.nombres} ${viajero.personaNatural.apellidosPaterno} ${viajero.personaNatural.apellidosMaterno || ''}`.toLowerCase();
+        return nombreCompleto.includes(searchTerm.toLowerCase());
+      });
+    }
+  }
+
+  // Seleccionar un viajero
+  onViajeroSelect(index: string, viajero: ViajeroConPersonaNatural): void {
+    // Actualizar el término de búsqueda con el nombre seleccionado
+    if (viajero.personaNatural) {
+      this.viajeroSearchTerms[index] = `${viajero.personaNatural.nombres} ${viajero.personaNatural.apellidosPaterno}`;
+    }
+
+    // Cerrar dropdown
+    this.viajeroDropdownsOpen[index] = false;
+
+    // Determinar si es un detalle original, fijo o nuevo
+    if (index.startsWith('detalle-original-')) {
+      // Es un detalle original
+      const detalleIndex = parseInt(index.replace('detalle-original-', ''));
+      this.onDetalleOriginalChange(detalleIndex, 'viajeroId', viajero.id);
+    } else if (index.startsWith('detalle-fijo-')) {
+      // Es un detalle fijo
+      const fijoIndex = parseInt(index.replace('detalle-fijo-', ''));
+      this.onProductoChange(fijoIndex, 'viajeroId', viajero.id);
+    } else if (index === 'nuevo') {
+      // Es el formulario de nuevo detalle
+      this.detalleForm.patchValue({ viajeroId: viajero.id });
+    }
+  }
+
+  // Abrir dropdown de viajeros
+  openViajeroDropdown(index: string): void {
+    this.initViajeroSearch(index);
+
+    // Si hay un término de búsqueda, filtrar, sino mostrar todos
+    const currentSearchTerm = this.viajeroSearchTerms[index] || '';
+    if (currentSearchTerm.trim()) {
+      // Filtrar basado en el término actual
+      this.viajerosFiltrados[index] = this.viajeros.filter(viajero => {
+        if (!viajero.personaNatural) return false;
+        const nombreCompleto = `${viajero.personaNatural.nombres} ${viajero.personaNatural.apellidosPaterno} ${viajero.personaNatural.apellidosMaterno || ''}`.toLowerCase();
+        return nombreCompleto.includes(currentSearchTerm.toLowerCase());
+      });
+    } else {
+      // Mostrar todos los viajeros si no hay término de búsqueda
+      this.viajerosFiltrados[index] = [...this.viajeros];
+    }
+
+    this.viajeroDropdownsOpen[index] = true;
+  }
+
+  // Cerrar dropdown de viajeros
+  closeViajeroDropdown(index: string): void {
+    // Delay para permitir click en las opciones
+    setTimeout(() => {
+      this.viajeroDropdownsOpen[index] = false;
+    }, 200);
+  }
+
+  // Verificar si el dropdown está abierto
+  isViajeroDropdownOpen(index: string): boolean {
+    return this.viajeroDropdownsOpen[index] || false;
+  }
+
+  // Obtener el término de búsqueda actual
+  getViajeroSearchTerm(index: string): string {
+    return this.viajeroSearchTerms[index] || '';
+  }
+
+  // Inicializar el valor de búsqueda con el viajero ya seleccionado
+  initViajeroSearchValue(index: string, viajeroId: number): void {
+    // Usar el mismo método que se usa para visualizar
+    const nombreCompleto = this.getViajeroDisplayName(viajeroId);
+
+    if (nombreCompleto && nombreCompleto !== 'Sin viajero' && nombreCompleto !== 'Viajero no encontrado') {
+      this.viajeroSearchTerms[index] = nombreCompleto;
+    }
+  }
+
+  // Inicializar todos los valores de búsqueda de viajeros para detalles existentes
+  initializeAllViajeroSearchValues(): void {
+    // Inicializar para detalles originales
+    if (this.liquidacion?.detalles) {
+      this.liquidacion.detalles.forEach((detalle, index) => {
+        if (detalle.viajero?.id) {
+          this.initViajeroSearchValue(`detalle-original-${index}`, detalle.viajero.id);
+        }
+      });
+    }
+
+    // Inicializar para detalles fijos
+    this.detallesFijos.forEach((detalle, index) => {
+      if (detalle.viajeroId) {
+        this.initViajeroSearchValue(`detalle-fijo-${index}`, detalle.viajeroId);
+      }
+    });
+  }
+
+  // Reinicializar valores de búsqueda después de restaurar estado temporal
+  reinicializarValoresBusqueda(): void {
+    // Asegurar que tenemos los datos necesarios
+    if (this.viajeros.length === 0) {
+      setTimeout(() => this.reinicializarValoresBusqueda(), 100);
+      return;
+    }
+
+    // Inicializar para detalles originales
+    if (this.liquidacion?.detalles) {
+      this.liquidacion.detalles.forEach((detalle, index) => {
+        if (detalle.viajero?.id) {
+          this.initViajeroSearchValue(`detalle-original-${index}`, detalle.viajero.id);
+        }
+      });
+    }
+
+    // Inicializar para detalles fijos
+    this.detallesFijos.forEach((detalle, index) => {
+      if (detalle.viajeroId) {
+        this.initViajeroSearchValue(`detalle-fijo-${index}`, detalle.viajeroId);
+      }
+    });
+
+    // Inicializar para el formulario nuevo si tiene un viajero seleccionado
+    const viajeroIdFormulario = this.detalleForm.get('viajeroId')?.value;
+    if (viajeroIdFormulario) {
+      this.initViajeroSearchValue('nuevo', Number(viajeroIdFormulario));
+    }
+  }
+}
