@@ -1,0 +1,47 @@
+---
+- name: Package and deploy lambda-doc-generator
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    terraform_output_file: "{{ repo_root }}/ansible/terraform-output.json"
+    outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
+    aws_region: "{{ outputs.aws_region.value }}"
+    lambda_function_name: "{{ outputs.lambda_function_name.value }}"
+    lambda_dir: "{{ repo_root }}/apps/lambda-doc-generator"
+    lambda_zip: "{{ repo_root }}/ansible/.tmp/lambda-doc-generator.zip"
+
+  tasks:
+    - name: Create temporary Ansible directory
+      ansible.builtin.file:
+        path: "{{ repo_root }}/ansible/.tmp"
+        state: directory
+        mode: "0755"
+
+    - name: Install Lambda production dependencies
+      ansible.builtin.command:
+        cmd: npm ci --omit=dev
+        chdir: "{{ lambda_dir }}"
+
+    - name: Package Lambda source
+      ansible.builtin.command:
+        cmd: python {{ repo_root }}/ansible/scripts/package_lambda.py {{ lambda_dir }} {{ lambda_zip }}
+        chdir: "{{ repo_root }}"
+
+    - name: Update Lambda function code
+      ansible.builtin.command: >
+        aws lambda update-function-code
+        --region {{ aws_region }}
+        --function-name {{ lambda_function_name }}
+        --zip-file fileb://{{ lambda_zip }}
+
+    - name: Wait until Lambda update finishes
+      ansible.builtin.command: >
+        aws lambda wait function-updated
+        --region {{ aws_region }}
+        --function-name {{ lambda_function_name }}
+      changed_when: false
+
+    - name: Show Lambda function
+      ansible.builtin.debug:
+        msg: "Lambda actualizada: {{ lambda_function_name }}"
