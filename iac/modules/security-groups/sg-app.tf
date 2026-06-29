@@ -8,6 +8,7 @@ data "aws_prefix_list" "s3" {
 }
 
 resource "aws_security_group" "alb" {
+  #checkov:skip=CKV2_AWS_5:SG is attached in compute/vpc-endpoints modules
   name        = "${var.prefix}-sg-alb"
   description = "Security Group para el ALB interno"
   vpc_id      = var.vpc_id
@@ -16,6 +17,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_security_group" "ecs_task" {
+  #checkov:skip=CKV2_AWS_5:SG is attached in compute/vpc-endpoints modules
   name        = "${var.prefix}-sg-ecs-task"
   description = "Security Group para las ECS Tasks (Spring Boot)"
   vpc_id      = var.vpc_id
@@ -24,6 +26,7 @@ resource "aws_security_group" "ecs_task" {
 }
 
 resource "aws_security_group" "vpclink" {
+  #checkov:skip=CKV2_AWS_5:SG is attached in compute/vpc-endpoints modules
   name        = "${var.prefix}-sg-vpclink"
   description = "Security Group para el VPC Link de API Gateway"
   vpc_id      = var.vpc_id
