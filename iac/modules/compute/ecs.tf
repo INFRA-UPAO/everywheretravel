@@ -107,7 +107,7 @@ resource "aws_ecs_task_definition" "monolito" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:${var.ecs_app_port}/actuator/health || exit 1"]
+        command     = ["CMD-SHELL", "curl -f http://localhost:${var.ecs_app_port}/api/v1/actuator/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3

@@ -32,7 +32,7 @@ resource "aws_lb_target_group" "main" {
 
   health_check {
     enabled             = true
-    path                = "/actuator/health"
+    path                = "/api/v1/actuator/health"
     port                = "traffic-port"
     protocol            = "HTTP"
     healthy_threshold   = 2
