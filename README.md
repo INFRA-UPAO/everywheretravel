@@ -155,19 +155,18 @@ Despues de reiniciar si Windows lo pide, abre Ubuntu y entra al proyecto montado
 cd "/mnt/c/ruta-al-proyecto/proyecto-iac"
 ```
 
-Instala Python, Ansible y utilidades basicas dentro de WSL:
+Instala Python, pipx, Ansible y utilidades basicas dentro de WSL:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-pip python3-venv unzip
-sudo apt update && sudo apt install pipx
+sudo apt install -y python3 python3-full python3-venv pipx unzip
 pipx ensurepath
 pipx install ansible
-# python3 -m pip install --user ansible
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ansible --version
 ```
+
+> No uses `python3 -m pip install --user ansible` en Ubuntu reciente. Puede fallar con `externally-managed-environment` por PEP 668. `pipx` instala Ansible en un entorno aislado y evita romper Python del sistema.
 
 Tambien instala y configura AWS CLI dentro de WSL, porque los playbooks ejecutan comandos `aws`:
 
