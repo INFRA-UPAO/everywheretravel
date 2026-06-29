@@ -197,8 +197,10 @@ module "compute" {
   s3_docs_bucket         = module.s3.s3_docs_bucket
   rds_secret_arn         = module.secrets.rds_secret_arn
   kms_logs_arn           = module.kms.kms_logs_arn
+  environment            = local.env
+  cognito_user_pool_id   = module.auth.cognito_user_pool_id
 
-  depends_on = [module.iam]
+  depends_on = [module.iam, module.auth]
 }
 
 module "auth" {
