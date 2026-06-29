@@ -115,8 +115,20 @@ resource "aws_ecs_task_definition" "monolito" {
       }
 
       readonlyRootFilesystem = true
+
+      mountPoints = [
+        {
+          sourceVolume  = "tmp"
+          containerPath = "/tmp"
+          readOnly      = false
+        }
+      ]
     }
   ])
+
+  volume {
+    name = "tmp"
+  }
 
   tags = {
     Name = "${var.prefix}-monolito-task"
