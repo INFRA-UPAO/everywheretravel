@@ -62,12 +62,6 @@ data "aws_iam_policy_document" "s3_endpoint_policy" {
 
     actions   = ["s3:GetObject"]
     resources = ["arn:aws:s3:::prod-${local.region}-starport-layer-bucket/*"]
-
-    condition {
-      test     = "StringEquals"
-      variable = "aws:PrincipalAccount"
-      values   = [local.account_id]
-    }
   }
 }
 
