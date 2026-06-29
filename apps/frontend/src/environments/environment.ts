@@ -6,6 +6,7 @@ export const environment = {
         clientId: '',
         redirectUri: 'http://localhost:4200/callback',
         logoutUri: 'http://localhost:4200/logout',
+        logoutEndpoint: '',
         scope: 'openid email profile'
     }
 };

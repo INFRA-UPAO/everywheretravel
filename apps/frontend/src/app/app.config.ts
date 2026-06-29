@@ -6,8 +6,7 @@ import { jwtInterceptor } from './core/interceptos/jwt.interceptor';
 import { cacheInterceptor } from './core/interceptos/cache.interceptor';
 import { environment } from '../environments/environment';
 
-import { LucideAngularModule, RefreshCcw, CircleUserRound  } from 'lucide-angular';
-
+import { LucideAngularModule, RefreshCcw, CircleUserRound } from 'lucide-angular';
 
 import { routes } from './app.routes';
 
@@ -16,10 +15,12 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(withInterceptors([jwtInterceptor, cacheInterceptor])),
-    importProvidersFrom(LucideAngularModule.pick({
+    importProvidersFrom(
+      LucideAngularModule.pick({
         RefreshCcw,
-        CircleUserRound
-    })),
+        CircleUserRound,
+      }),
+    ),
     provideAuth({
       config: {
         authority: environment.cognito.authority,
@@ -31,7 +32,7 @@ export const appConfig: ApplicationConfig = {
         silentRenew: true,
         useRefreshToken: true,
         autoUserInfo: false,
-      }
-    })
-  ]
+      },
+    }),
+  ],
 };
