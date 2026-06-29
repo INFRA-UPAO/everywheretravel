@@ -8,6 +8,8 @@ locals {
 }
 
 resource "aws_s3_bucket" "access_logs" {
+  #checkov:skip=CKV_AWS_145:S3 access logging does not support KMS encryption
+  #checkov:skip=CKV_AWS_144:Cross-region replication not required for access logs
   bucket        = "${var.prefix}-access-logs"
   force_destroy = false
 
@@ -22,6 +24,7 @@ resource "aws_s3_bucket_notification" "access_logs_events" {
 }
 
 resource "aws_s3_bucket_ownership_controls" "access_logs" {
+  #checkov:skip=CKV2_AWS_65:BucketOwnerPreferred required for S3 access logging
   bucket = aws_s3_bucket.access_logs.id
   rule {
     object_ownership = "BucketOwnerPreferred"

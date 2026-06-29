@@ -44,6 +44,7 @@ resource "aws_cloudfront_response_headers_policy" "security" {
 
 resource "aws_cloudfront_distribution" "main" {
   # checkov:skip=CKV_AWS_310: Los orígenes cumplen funciones distintas (frontend y API), no aplica origin failover.
+  # checkov:skip=CKV2_AWS_47: Falso positivo; el WebACL asociado incluye AWSManagedRulesKnownBadInputsRuleSet para cubrir Log4j y entradas maliciosas conocidas.
 
   provider = aws.edge
 
@@ -128,7 +129,8 @@ resource "aws_cloudfront_distribution" "main" {
 
   restrictions {
     geo_restriction {
-      restriction_type = "none"
+      restriction_type = "whitelist"
+      locations        = ["PE", "AR", "CL", "CO", "EC", "BR", "MX", "US"]
     }
   }
 
