@@ -105,7 +105,7 @@ El workspace activo aparece marcado con un `*`.
 ### Cambiar de workspace
 
 ```bash
-terraform workspace select dev
+terraform workspace select prod
 ```
 
 ### Crear un nuevo workspace
@@ -197,7 +197,7 @@ Esta guia permite probar el proyecto completo sin pipelines:
 - El login inicia en la pagina del sistema (`/auth/login`) y autentica con AWS Cognito.
 - La Lambda `lambda-doc-generator` genera documentos y los guarda en S3.
 
-> Antes de empezar, confirma que Docker Desktop este abierto y que el archivo `iac/tfvars/dev.tfvars` exista.
+> Antes de empezar, confirma que Docker Desktop este abierto y que el archivo `iac/tfvars/prod.tfvars` exista.
 
 ### 1. Configurar acceso AWS
 
@@ -217,18 +217,18 @@ El comando `aws sts get-caller-identity` debe mostrar la cuenta AWS del equipo.
 ```powershell
 cd iac
 terraform init
-terraform workspace select dev
+terraform workspace select prod
 terraform validate
-terraform apply -var-file="tfvars/dev.tfvars"
+terraform apply -var-file="tfvars/prod.tfvars"
 terraform output -json > ../ansible/terraform-output.json
 cd ..
 ```
 
-Si el workspace `dev` no existe, crealo una sola vez:
+Si el workspace `prod` no existe, crealo una sola vez:
 
 ```powershell
 cd iac
-terraform workspace new dev
+terraform workspace new prod
 cd ..
 ```
 
@@ -245,7 +245,7 @@ ansible-galaxy collection install -r ansible/requirements.yml
 Este paso construye la imagen Docker del backend, la sube a ECR y actualiza el servicio ECS.
 
 ```bash
-ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_backend_ecs.yml -e env=dev -e image_tag=demo-v1
+ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_backend_ecs.yml -e env=prod -e image_tag=demo-v1
 ```
 
 ### 5. Desplegar Lambda doc generator
@@ -253,7 +253,7 @@ ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_backend
 Este paso instala dependencias de produccion, empaqueta la Lambda y actualiza la funcion en AWS.
 
 ```bash
-ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_lambda_doc_generator.yml -e env=dev
+ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_lambda_doc_generator.yml -e env=prod
 ```
 
 ### 6. Desplegar frontend Angular
@@ -261,7 +261,7 @@ ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_lambda_
 Este paso genera `environment.prod.ts` con los valores reales de Cognito, compila Angular, sube el SPA al bucket S3 del frontend e invalida CloudFront.
 
 ```bash
-ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_frontend.yml -e env=dev
+ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_frontend.yml -e env=prod
 ```
 
 ### 7. Crear usuario demo en Cognito
@@ -277,7 +277,7 @@ Usa ese correo y password para iniciar sesion desde la pagina `/auth/login`.
 Este paso invoca la Lambda con un evento de prueba similar al que llegaria desde SQS.
 
 ```bash
-ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/test_lambda_doc_generator.yml -e env=dev
+ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/test_lambda_doc_generator.yml -e env=prod
 ```
 
 Luego revisa el bucket de documentos en S3, dentro de:
@@ -313,9 +313,9 @@ El orden correcto para levantar el proyecto completo es:
 
 1. Configurar acceso AWS con usuario IAM temporal o SSO.
 2. `terraform init`.
-3. `terraform workspace select dev` o `terraform workspace new dev`.
+3. `terraform workspace select prod` o `terraform workspace new prod`.
 4. `terraform validate`.
-5. `terraform apply -var-file="tfvars/dev.tfvars"`.
+5. `terraform apply -var-file="tfvars/prod.tfvars"`.
 6. `terraform output -json > ../ansible/terraform-output.json`.
 7. `ansible-galaxy collection install -r ansible/requirements.yml`.
 8. Ejecutar `deploy_backend_ecs.yml`.
