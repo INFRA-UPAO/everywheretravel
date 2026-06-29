@@ -13,6 +13,7 @@
     cloudfront_domain_name: "{{ outputs.cloudfront_domain_name.value }}"
     cognito_issuer_url: "{{ outputs.cognito_issuer_url.value }}"
     cognito_app_client_id: "{{ outputs.cognito_app_client_id.value }}"
+    cognito_logout_endpoint: "https://everywhere-travel-{{ env }}.auth.{{ aws_region }}.amazoncognito.com/logout"
     frontend_dir: "{{ repo_root }}/apps/frontend"
     frontend_dist_dir: "{{ frontend_dir }}/dist/everywhere-frontend/browser"
 
@@ -30,6 +31,7 @@
                   clientId: '{{ cognito_app_client_id }}',
                   redirectUri: 'https://{{ domain_name }}/callback',
                   logoutUri: 'https://{{ domain_name }}/logout',
+                  logoutEndpoint: '{{ cognito_logout_endpoint }}',
                   scope: 'openid email profile'
               }
           };

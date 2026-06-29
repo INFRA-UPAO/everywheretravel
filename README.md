@@ -143,6 +143,11 @@ terraform apply -var-file="tfvars/prod.tfvars"
 
 Si estas en Windows, ejecuta Ansible desde **WSL con Ubuntu**. Ansible no se recomienda como control node nativo en Windows.
 
+En Windows se usan dos terminales:
+
+- **PowerShell:** Terraform y generacion de outputs.
+- **WSL / Ubuntu:** Ansible, AWS CLI para los playbooks y Docker.
+
 Instala WSL desde PowerShell:
 
 ```powershell
@@ -184,7 +189,7 @@ Si vas a desplegar el backend, Docker Desktop debe estar abierto y con integraci
 Docker Desktop > Settings > Resources > WSL Integration > Ubuntu
 ```
 
-Los comandos de Terraform pueden ejecutarse desde PowerShell o WSL. Los comandos de Ansible se ejecutan desde WSL.
+Los comandos de Terraform pueden ejecutarse desde PowerShell o WSL. Para esta guia en Windows se usa PowerShell para Terraform y WSL para Ansible.
 
 ---
 
@@ -197,11 +202,22 @@ Esta guia permite probar el proyecto completo sin pipelines:
 - El login inicia en la pagina del sistema (`/auth/login`) y autentica con AWS Cognito.
 - La Lambda `lambda-doc-generator` genera documentos y los guarda en S3.
 
+### Elegir entorno
+
+Para la entrega se recomienda `prod`.
+
+| Entorno    | Workspace Terraform | Archivo tfvars           | Variable Ansible |
+| ---------- | ------------------- | ------------------------ | ---------------- |
+| Produccion | `prod`              | `iac/tfvars/prod.tfvars` | `env=prod`       |
+| Desarrollo | `dev`               | `iac/tfvars/dev.tfvars`  | `env=dev`        |
+
+En los comandos siguientes se usa `prod`. Si quieres probar `dev`, cambia `prod` por `dev` y usa `tfvars/dev.tfvars`.
+
 > Antes de empezar, confirma que Docker Desktop este abierto y que el archivo `iac/tfvars/prod.tfvars` exista.
 
 ### 1. Configurar acceso AWS
 
-Con SSO:
+Con SSO en PowerShell:
 
 ```powershell
 aws configure sso --profile leturia --use-device-code
@@ -212,7 +228,9 @@ aws sts get-caller-identity
 
 El comando `aws sts get-caller-identity` debe mostrar la cuenta AWS del equipo.
 
-### 2. Provisionar infraestructura con Terraform
+### 2. Provisionar infraestructura con Terraform en Windows
+
+Ejecuta Terraform desde **PowerShell**:
 
 ```powershell
 cd iac
@@ -224,7 +242,7 @@ terraform output -json > ../ansible/terraform-output.json
 cd ..
 ```
 
-Si el workspace `prod` no existe, crealo una sola vez:
+Si el workspace `prod` no existe, crealo una sola vez y vuelve a ejecutar el bloque anterior:
 
 ```powershell
 cd iac
@@ -232,15 +250,58 @@ terraform workspace new prod
 cd ..
 ```
 
-### 3. Instalar dependencias de Ansible
+El archivo `ansible/terraform-output.json` se genera **despues** de que el `terraform apply` termine correctamente. Los playbooks no funcionan sin ese archivo.
 
-> Si estas en Windows, ejecuta este comando desde WSL.
+### 3. Preparar WSL para Ansible en Windows
+
+Abre Ubuntu/WSL y entra al proyecto:
+
+```bash
+cd "/mnt/c/ruta-al-proyecto/proyecto-iac"
+```
+
+Configura el mismo profile AWS dentro de WSL:
+
+```bash
+aws sso login --profile leturia --use-device-code
+export AWS_PROFILE=leturia
+aws sts get-caller-identity
+```
+
+Verifica que Docker Desktop este disponible desde WSL:
+
+```bash
+docker ps
+```
+
+Instala colecciones de Ansible:
 
 ```bash
 ansible-galaxy collection install -r ansible/requirements.yml
 ```
 
-### 4. Desplegar backend en ECS
+### 4. Provisionar y desplegar desde Linux o macOS
+
+Si estas en Linux o macOS, puedes ejecutar todo en la misma terminal:
+
+```bash
+export AWS_PROFILE=leturia
+aws sso login --profile leturia --use-device-code
+
+cd iac
+terraform init
+terraform workspace select prod || terraform workspace new prod
+terraform validate
+terraform apply -var-file="tfvars/prod.tfvars"
+terraform output -json > ../ansible/terraform-output.json
+cd ..
+
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
+Despues continua con los playbooks de la siguiente seccion.
+
+### 5. Desplegar backend en ECS
 
 Este paso construye la imagen Docker del backend, la sube a ECR y actualiza el servicio ECS.
 
@@ -248,7 +309,7 @@ Este paso construye la imagen Docker del backend, la sube a ECR y actualiza el s
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_backend_ecs.yml -e env=prod -e image_tag=demo-v1
 ```
 
-### 5. Desplegar Lambda doc generator
+### 6. Desplegar Lambda doc generator
 
 Este paso instala dependencias de produccion, empaqueta la Lambda y actualiza la funcion en AWS.
 
@@ -256,7 +317,7 @@ Este paso instala dependencias de produccion, empaqueta la Lambda y actualiza la
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_lambda_doc_generator.yml -e env=prod
 ```
 
-### 6. Desplegar frontend Angular
+### 7. Desplegar frontend Angular
 
 Este paso genera `environment.prod.ts` con los valores reales de Cognito, compila Angular, sube el SPA al bucket S3 del frontend e invalida CloudFront.
 
@@ -264,7 +325,7 @@ Este paso genera `environment.prod.ts` con los valores reales de Cognito, compil
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_frontend.yml -e env=prod
 ```
 
-### 7. Crear usuario demo en Cognito
+### 8. Crear usuario demo en Cognito
 
 ```bash
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/create_cognito_demo_user.yml -e demo_email=docente@example.com -e demo_password='Demo12345!'
@@ -272,7 +333,7 @@ ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/create_cognito
 
 Usa ese correo y password para iniciar sesion desde la pagina `/auth/login`.
 
-### 8. Probar Lambda doc generator
+### 9. Probar Lambda doc generator
 
 Este paso invoca la Lambda con un evento de prueba similar al que llegaria desde SQS.
 
@@ -286,7 +347,7 @@ Luego revisa el bucket de documentos en S3, dentro de:
 generated/recibo/
 ```
 
-### 9. Abrir la aplicacion
+### 10. Abrir la aplicacion
 
 Puedes obtener las URLs con:
 
@@ -309,21 +370,23 @@ Abre el dominio configurado o el dominio de CloudFront. El flujo esperado es:
 
 ## Despliegue manual con Terraform + Ansible
 
-El orden correcto para levantar el proyecto completo es:
+Resumen del orden correcto para levantar el proyecto completo en `prod`:
 
-1. Configurar acceso AWS con usuario IAM temporal o SSO.
-2. `terraform init`.
-3. `terraform workspace select prod` o `terraform workspace new prod`.
-4. `terraform validate`.
-5. `terraform apply -var-file="tfvars/prod.tfvars"`.
-6. `terraform output -json > ../ansible/terraform-output.json`.
-7. `ansible-galaxy collection install -r ansible/requirements.yml`.
-8. Ejecutar `deploy_backend_ecs.yml`.
-9. Ejecutar `deploy_lambda_doc_generator.yml`.
-10. Ejecutar `deploy_frontend.yml`.
-11. Ejecutar `create_cognito_demo_user.yml`.
-12. Probar app desde CloudFront o dominio.
-13. Ejecutar `test_lambda_doc_generator.yml`.
+1. Configurar acceso AWS con SSO.
+2. En Windows, ejecutar Terraform desde PowerShell. En Linux/macOS, usar la misma terminal.
+3. `terraform init`.
+4. `terraform workspace select prod` o `terraform workspace new prod`.
+5. `terraform validate`.
+6. `terraform apply -var-file="tfvars/prod.tfvars"`.
+7. `terraform output -json > ../ansible/terraform-output.json`.
+8. En Windows, pasar a WSL para ejecutar Ansible. En Linux/macOS, continuar en la misma terminal.
+9. `ansible-galaxy collection install -r ansible/requirements.yml`.
+10. Ejecutar `deploy_backend_ecs.yml`.
+11. Ejecutar `deploy_lambda_doc_generator.yml`.
+12. Ejecutar `deploy_frontend.yml`.
+13. Ejecutar `create_cognito_demo_user.yml`.
+14. Probar app desde CloudFront o dominio.
+15. Ejecutar `test_lambda_doc_generator.yml`.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-- name: Create Cognito demo user
+- name: Create Cognito demo user and seed backend database
   hosts: localhost
   gather_facts: false
   vars:
@@ -8,6 +8,9 @@
     outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
     aws_region: "{{ outputs.aws_region.value }}"
     cognito_user_pool_id: "{{ outputs.cognito_user_pool_id.value }}"
+    ecs_cluster_name: "{{ outputs.ecs_cluster_name.value }}"
+    ecs_service_name: "{{ outputs.ecs_service_name.value }}"
+    demo_role: "{{ demo_role | default('SISTEMAS') }}"
 
   tasks:
     - name: Validate demo credentials
@@ -40,9 +43,44 @@
         --password {{ demo_password }}
         --permanent
 
+    - name: Get running ECS task ARN
+      ansible.builtin.shell: >
+        aws ecs list-tasks
+        --region {{ aws_region }}
+        --cluster {{ ecs_cluster_name }}
+        --service-name {{ ecs_service_name }}
+        --desired-status RUNNING
+        --query 'taskArns[0]'
+        --output text
+      register: ecs_task_arn
+      changed_when: false
+
+    - name: Seed role and user in backend database
+      ansible.builtin.shell: |
+        aws ecs execute-command \
+          --region {{ aws_region }} \
+          --cluster {{ ecs_cluster_name }} \
+          --task {{ ecs_task_arn.stdout }} \
+          --container monolito \
+          --interactive \
+          --command "sh -c \"
+            apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null 2>&1;
+            PGPASSWORD=\$DB_PASSWORD psql -h \$DB_HOST -p \$DB_PORT -U \$DB_USERNAME -d \$DB_NAME -c \\\"
+              INSERT INTO role (rol_id, rol_nam_vc) VALUES (6, '{{ demo_role }}')
+              ON CONFLICT (rol_id) DO NOTHING;
+              INSERT INTO usuarios (rol_nam_vc, usr_email_vc, usr_pass_vc, rol_id)
+              VALUES ('Demo {{ demo_role }}', '{{ demo_email }}', 'cognito-managed', 6)
+              ON CONFLICT (usr_email_vc) DO NOTHING;
+            \\\"
+          \""
+      register: seed_result
+      changed_when: "'INSERT' in seed_result.stdout"
+      failed_when: false
+
     - name: Show demo user
       ansible.builtin.debug:
         msg:
-          - "Usuario demo listo en Cognito."
-          - "Email: {{ demo_email }}"
-          - "Password: {{ demo_password }}"
+          - "Usuario demo listo."
+          - "Cognito: {{ demo_email }} / {{ demo_password }}"
+          - "Backend DB: rol={{ demo_role }}"
+          - "Seed DB result: {{ seed_result.stdout | default('skipped') }}"
