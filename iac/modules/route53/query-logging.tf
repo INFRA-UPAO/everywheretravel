@@ -10,7 +10,7 @@ resource "aws_cloudwatch_log_group" "route53_query_log" {
 }
 
 resource "aws_route53_query_log" "main" {
-  zone_id                  = local.zone_id
+  zone_id                  = var.manage_hosted_zone ? aws_route53_zone.main[0].zone_id : data.aws_route53_zone.main[0].zone_id
   cloudwatch_log_group_arn = aws_cloudwatch_log_group.route53_query_log.arn
 
   depends_on = [
