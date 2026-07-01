@@ -149,6 +149,7 @@ data "aws_iam_policy_document" "access_logs_policy" {
       values   = [local.account_id]
     }
   }
+
   statement {
     sid    = "AllowS3WafLogging"
     effect = "Allow"
@@ -168,6 +169,22 @@ data "aws_iam_policy_document" "access_logs_policy" {
       test     = "StringEquals"
       variable = "aws:SourceAccount"
       values   = [local.account_id]
+    }
+  }
+
+  statement {
+    sid    = "DenyNonHTTPS"
+    effect = "Deny"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.access_logs.arn, "${aws_s3_bucket.access_logs.arn}/*"]
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
     }
   }
 }

@@ -8,6 +8,83 @@ resource "aws_s3_bucket" "waf_logs" {
   }
 }
 
+data "aws_iam_policy_document" "waf_logs_policy" {
+  statement {
+    sid    = "AllowAWSLogDeliveryAclCheck"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    actions = [
+      "s3:GetBucketAcl",
+      "s3:ListBucket"
+    ]
+
+    resources = [aws_s3_bucket.waf_logs.arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+
+  statement {
+    sid    = "AllowAWSLogDeliveryWrite"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["delivery.logs.amazonaws.com"]
+    }
+
+    actions = ["s3:PutObject"]
+
+    resources = [
+      "${aws_s3_bucket.waf_logs.arn}/AWSLogs/${local.account_id}/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+
+  statement {
+    sid    = "DenyNonHTTPS"
+    effect = "Deny"
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    actions = ["s3:*"]
+
+    resources = [
+      aws_s3_bucket.waf_logs.arn,
+      "${aws_s3_bucket.waf_logs.arn}/*"
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "waf_logs" {
+  bucket = aws_s3_bucket.waf_logs.id
+  policy = data.aws_iam_policy_document.waf_logs_policy.json
+
+  depends_on = [aws_s3_bucket_public_access_block.waf_logs]
+}
+
 resource "aws_s3_bucket_notification" "waf_logs_events" {
   bucket      = aws_s3_bucket.waf_logs.id
   eventbridge = true
