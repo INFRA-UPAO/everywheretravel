@@ -10,7 +10,7 @@
     cognito_user_pool_id: "{{ outputs.cognito_user_pool_id.value }}"
     ecs_cluster_name: "{{ outputs.ecs_cluster_name.value }}"
     ecs_service_name: "{{ outputs.ecs_service_name.value }}"
-    demo_role: "{{ demo_role | default('SISTEMAS') }}"
+    demo_role: SISTEMAS
 
   tasks:
     - name: Validate demo credentials
