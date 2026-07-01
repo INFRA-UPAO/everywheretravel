@@ -5,6 +5,7 @@ import { CognitoAuthService } from '../../../core/service/cognito/cognito-auth.s
 import { StorageService } from '../../../core/service/storage.service';
 import { UserService } from '../../../core/service/User/user.service';
 import { AuthResponse } from '../../../shared/models/auth/auth-response-model';
+import { ROLES_DEFINITION, RoleType, Permission } from '../../../shared/models/role.model';
 
 @Component({
   selector: 'app-callback',
@@ -81,7 +82,7 @@ export class CallbackComponent implements OnInit {
           token: '',
           name: profile.name,
           role: profile.role ?? '',
-          permissions: {}
+          permissions: this.buildPermissions(profile.role)
         };
         this.storageService.setAuthData(authData);
         this.router.navigate(['/dashboard']);
@@ -91,5 +92,18 @@ export class CallbackComponent implements OnInit {
         setTimeout(() => this.router.navigate(['/auth/login']), 3000);
       }
     });
+  }
+
+  private buildPermissions(role: string | undefined | null): { [module: string]: Permission[] } {
+    const roleDefinition = ROLES_DEFINITION[role as RoleType];
+    if (!roleDefinition) {
+      return {};
+    }
+
+    const permissions: { [module: string]: Permission[] } = {};
+    for (const moduleKey of roleDefinition.modules) {
+      permissions[moduleKey] = roleDefinition.permissions as Permission[];
+    }
+    return permissions;
   }
 }
