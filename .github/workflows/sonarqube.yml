@@ -27,7 +27,8 @@ jobs:
           docker run --rm \
             -e SONAR_HOST_URL="${{ secrets.SONAR_HOST_URL }}" \
             -e SONAR_TOKEN="${{ secrets.SONAR_TOKEN }}" \
-            -v "${{ github.workspace }}/iac:/usr/src" \
+            -v "${{ github.workspace }}:/usr/src" \
+            -w /usr/src/iac \
             sonarsource/sonar-scanner-cli
 
       - name: Quality Gate Check
