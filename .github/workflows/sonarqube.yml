@@ -1,0 +1,42 @@
+name: SonarQube Local Analysis
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "iac/**"
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "iac/**"
+  workflow_dispatch:
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan + Quality Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        run: |
+          docker run --rm \
+            -e SONAR_HOST_URL="${{ secrets.SONAR_HOST_URL }}" \
+            -e SONAR_TOKEN="${{ secrets.SONAR_TOKEN }}" \
+            -v "${{ github.workspace }}/iac:/usr/src" \
+            sonarsource/sonar-scanner-cli
+
+      - name: Quality Gate Check
+        run: |
+          sleep 15
+          STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" "${{ secrets.SONAR_HOST_URL }}/api/qualitygates/project_status?projectKey=everywheretravel" | jq -r '.projectStatus.status')
+          echo "Quality Gate Status: $STATUS"
+          if [ "$STATUS" != "OK" ]; then
+            echo "Quality Gate FAILED"
+            exit 1
+          fi
+          echo "Quality Gate PASSED"
