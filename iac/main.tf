@@ -10,18 +10,12 @@ resource "null_resource" "prod_protection" {
   }
 }
 
-resource "aws_route53_zone" "main" {
-  provider = aws.main
-  name     = "everywheretravel.online"
-
-  tags = {
-    Name = "everywheretravel.online"
-  }
-}
-
 module "kms" {
-  source    = "./modules/kms"
-  providers = { aws = aws.main }
+  source = "./modules/kms"
+  providers = {
+    aws      = aws.main
+    aws.edge = aws.edge
+  }
 
   prefix = local.prefix
   env    = local.env
@@ -132,9 +126,9 @@ module "secrets" {
   ecs_execution_role_arn = module.iam.ecs_execution_role_arn
   ecs_task_role_arn      = module.iam.ecs_task_role_arn
   lambda_docgen_role_arn = module.iam.lambda_docgen_role_arn
-  rds_instance_arn       = module.database.rds_arn
-  sg_lambda_id           = module.security_groups.sg_lambda_id
   private_app_subnet_ids = module.networking.private_app_subnet_ids
+  sg_lambda_id           = module.security_groups.sg_lambda_id
+  rds_instance_arn       = module.database.rds_arn
 }
 
 module "vpc_endpoints" {
@@ -198,13 +192,15 @@ module "compute" {
   ecs_execution_role_arn = module.iam.ecs_execution_role_arn
   ecs_task_role_arn      = module.iam.ecs_task_role_arn
   ecr_repo_url           = module.ecr.ecr_repo_url
-  ecr_image_tag          = "initial"
+  ecr_image_tag          = var.ecr_image_tag
   sqs_queue_url          = module.sqs.sqs_queue_url
   s3_docs_bucket         = module.s3.s3_docs_bucket
   rds_secret_arn         = module.secrets.rds_secret_arn
   kms_logs_arn           = module.kms.kms_logs_arn
+  environment            = local.env
+  cognito_user_pool_id   = module.auth.cognito_user_pool_id
 
-  depends_on = [module.iam]
+  depends_on = [module.iam, module.auth]
 }
 
 module "auth" {
@@ -252,24 +248,25 @@ module "edge" {
   s3_waf_logs_bucket_arn = module.s3.s3_waf_logs_bucket_arn
   api_endpoint           = module.api_gateway.api_endpoint
   lambda_edge_role_arn   = module.iam.lambda_edge_role_arn
-  route53_zone_id        = aws_route53_zone.main.zone_id
+  route53_zone_id        = module.route53.zone_id
 }
 
 module "route53" {
   source = "./modules/route53"
 
   providers = {
-    aws = aws.main
+    aws      = aws.main
+    aws.edge = aws.edge
   }
 
-  prefix                    = local.prefix
-  domain_name               = var.domain_name
-  is_prod                   = local.is_prod
-  route53_zone_id           = aws_route53_zone.main.zone_id
-  cloudfront_domain_name    = module.edge.cloudfront_domain_name
-  cloudfront_hosted_zone_id = module.edge.cloudfront_hosted_zone_id
-  zoho_verification_token   = var.zoho_verification_token
-  zoho_dkim_cname_value     = var.zoho_dkim_cname_value
+  prefix                  = local.prefix
+  domain_name             = var.domain_name
+  manage_hosted_zone      = var.route53_manage_hosted_zone
+  is_prod                 = local.is_prod
+  kms_route53_logs_arn    = module.kms.kms_route53_logs_arn
+  kms_dnssec_arn          = module.kms.kms_dnssec_arn
+  zoho_verification_token = var.zoho_verification_token
+  zoho_dkim_cname_value   = var.zoho_dkim_cname_value
 }
 
 module "backup" {
@@ -296,17 +293,21 @@ module "lambda" {
     aws = aws.main
   }
 
-  prefix                 = local.prefix
-  lambda_memory          = var.lambda_memory
-  lambda_timeout         = var.lambda_timeout
-  private_app_subnet_ids = module.networking.private_app_subnet_ids
-  sg_lambda_id           = module.security_groups.sg_lambda_id
-  lambda_docgen_role_arn = module.iam.lambda_docgen_role_arn
-  sqs_queue_arn          = module.sqs.sqs_queue_arn
-  sqs_queue_url          = module.sqs.sqs_queue_url
-  s3_docs_bucket         = module.s3.s3_docs_bucket
-  rds_secret_arn         = module.secrets.rds_secret_arn
-  kms_logs_arn           = module.kms.kms_logs_arn
+  prefix                      = local.prefix
+  lambda_memory               = var.lambda_memory
+  lambda_timeout              = var.lambda_timeout
+  lambda_reserved_concurrency = var.lambda_reserved_concurrency
+  private_app_subnet_ids      = module.networking.private_app_subnet_ids
+  sg_lambda_id                = module.security_groups.sg_lambda_id
+  lambda_docgen_role_arn      = module.iam.lambda_docgen_role_arn
+  sqs_queue_arn               = module.sqs.sqs_queue_arn
+  sqs_queue_url               = module.sqs.sqs_queue_url
+  s3_docs_bucket              = module.s3.s3_docs_bucket
+  rds_secret_arn              = module.secrets.rds_secret_arn
+  kms_logs_arn                = module.kms.kms_logs_arn
+  sqs_dlq_arn                 = module.sqs.sqs_dlq_arn
+
+  depends_on = [module.iam]
 }
 
 module "observability" {

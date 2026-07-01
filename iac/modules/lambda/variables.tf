@@ -52,8 +52,14 @@ variable "kms_logs_arn" {
   description = "ARN de la llave KMS para CloudWatch Logs"
   type        = string
 }
+
 variable "lambda_reserved_concurrency" {
-  description = "Límite de ejecuciones concurrentes para la Lambda"
+  description = "Límite opcional de ejecuciones concurrentes para la Lambda. null desactiva la reserva."
   type        = number
-  default     = 10
+  default     = null
+}
+
+variable "sqs_dlq_arn" {
+  description = "ARN de la SQS Dead Letter Queue para Lambda"
+  type        = string
 }

@@ -1,0 +1,118 @@
+---
+- name: Build, push and deploy backend image to ECS
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    terraform_output_file: "{{ repo_root }}/ansible/terraform-output.json"
+    outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
+    aws_region: "{{ outputs.aws_region.value }}"
+    ecr_repo_url: "{{ outputs.ecr_repo_url.value }}"
+    ecr_registry: "{{ ecr_repo_url.split('/')[0] }}"
+    ecs_cluster_name: "{{ outputs.ecs_cluster_name.value }}"
+    ecs_service_name: "{{ outputs.ecs_service_name.value }}"
+    image_uri: "{{ ecr_repo_url }}:{{ image_tag }}"
+
+  tasks:
+    - name: Validate required image tag
+      ansible.builtin.assert:
+        that:
+          - image_tag is defined
+          - image_tag | length > 0
+        fail_msg: "Run with -e image_tag=demo-v1"
+
+    - name: Create temporary Ansible directory
+      ansible.builtin.file:
+        path: "{{ repo_root }}/ansible/.tmp"
+        state: directory
+        mode: "0755"
+
+    - name: Login Docker to Amazon ECR
+      ansible.builtin.shell: >
+        aws ecr get-login-password --region {{ aws_region }}
+        | docker login --username AWS --password-stdin {{ ecr_registry }}
+      changed_when: false
+
+    - name: Build backend Docker image
+      ansible.builtin.command:
+        cmd: docker build -t {{ image_uri }} apps/backend
+        chdir: "{{ repo_root }}"
+
+    - name: Push backend Docker image
+      ansible.builtin.command:
+        cmd: docker push {{ image_uri }}
+        chdir: "{{ repo_root }}"
+
+    - name: Get current ECS task definition ARN
+      ansible.builtin.command: >
+        aws ecs describe-services
+        --region {{ aws_region }}
+        --cluster {{ ecs_cluster_name }}
+        --services {{ ecs_service_name }}
+        --query services[0].taskDefinition
+        --output text
+      register: current_task_definition_arn
+      changed_when: false
+
+    - name: Read current ECS task definition
+      ansible.builtin.command: >
+        aws ecs describe-task-definition
+        --region {{ aws_region }}
+        --task-definition {{ current_task_definition_arn.stdout }}
+        --output json
+      register: current_task_definition_raw
+      changed_when: false
+
+    - name: Prepare new ECS task definition payload
+      ansible.builtin.set_fact:
+        current_task_definition: "{{ (current_task_definition_raw.stdout | from_json).taskDefinition }}"
+
+    - name: Write ECS task definition payload
+      ansible.builtin.copy:
+        dest: "{{ repo_root }}/ansible/.tmp/task-definition.json"
+        mode: "0644"
+        content: |
+          {{
+            {
+              'family': current_task_definition.family,
+              'taskRoleArn': current_task_definition.taskRoleArn,
+              'executionRoleArn': current_task_definition.executionRoleArn,
+              'networkMode': current_task_definition.networkMode,
+              'containerDefinitions': current_task_definition.containerDefinitions | map('combine', {'image': image_uri}) | list,
+              'volumes': current_task_definition.volumes,
+              'placementConstraints': current_task_definition.placementConstraints,
+              'requiresCompatibilities': current_task_definition.requiresCompatibilities,
+              'cpu': current_task_definition.cpu,
+              'memory': current_task_definition.memory
+            } | to_nice_json
+          }}
+
+    - name: Register new ECS task definition
+      ansible.builtin.command: >
+        aws ecs register-task-definition
+        --region {{ aws_region }}
+        --cli-input-json file://{{ repo_root }}/ansible/.tmp/task-definition.json
+        --query taskDefinition.taskDefinitionArn
+        --output text
+      register: new_task_definition_arn
+
+    - name: Update ECS service
+      ansible.builtin.command: >
+        aws ecs update-service
+        --region {{ aws_region }}
+        --cluster {{ ecs_cluster_name }}
+        --service {{ ecs_service_name }}
+        --task-definition {{ new_task_definition_arn.stdout }}
+        --force-new-deployment
+
+    - name: Wait until ECS service is stable
+      ansible.builtin.command: >
+        aws ecs wait services-stable
+        --region {{ aws_region }}
+        --cluster {{ ecs_cluster_name }}
+        --services {{ ecs_service_name }}
+      changed_when: false
+
+    - name: Show deployed image
+      ansible.builtin.debug:
+        msg: "Backend desplegado en ECS con imagen {{ image_uri }}"

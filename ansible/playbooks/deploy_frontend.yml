@@ -1,0 +1,66 @@
+---
+- name: Build and publish Angular SPA to S3 and CloudFront
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    terraform_output_file: "{{ repo_root }}/ansible/terraform-output.json"
+    outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
+    aws_region: "{{ outputs.aws_region.value }}"
+    domain_name: "{{ outputs.domain_name.value }}"
+    s3_frontend_bucket: "{{ outputs.s3_frontend_bucket.value }}"
+    cloudfront_distribution_id: "{{ outputs.cloudfront_distribution_id.value }}"
+    cloudfront_domain_name: "{{ outputs.cloudfront_domain_name.value }}"
+    cognito_issuer_url: "{{ outputs.cognito_issuer_url.value }}"
+    cognito_app_client_id: "{{ outputs.cognito_app_client_id.value }}"
+    cognito_logout_endpoint: "https://everywhere-travel-{{ env }}.auth.{{ aws_region }}.amazoncognito.com/logout"
+    frontend_dir: "{{ repo_root }}/apps/frontend"
+    frontend_dist_dir: "{{ frontend_dir }}/dist/everywhere-frontend/browser"
+
+  tasks:
+    - name: Generate production Angular environment
+      ansible.builtin.copy:
+        dest: "{{ frontend_dir }}/src/environments/environment.prod.ts"
+        mode: "0644"
+        content: |
+          export const environment = {
+              production: true,
+              baseURL: 'https://{{ domain_name }}/api/v1',
+              cognito: {
+                  authority: '{{ cognito_issuer_url }}',
+                  clientId: '{{ cognito_app_client_id }}',
+                  redirectUri: 'https://{{ domain_name }}/callback',
+                  logoutUri: 'https://{{ domain_name }}/logout',
+                  logoutEndpoint: '{{ cognito_logout_endpoint }}',
+                  scope: 'openid email profile'
+              }
+          };
+
+    - name: Install frontend dependencies
+      ansible.builtin.command:
+        cmd: npm ci
+        chdir: "{{ frontend_dir }}"
+
+    - name: Build Angular frontend
+      ansible.builtin.command:
+        cmd: npm run build
+        chdir: "{{ frontend_dir }}"
+
+    - name: Upload frontend files to S3
+      ansible.builtin.command: >
+        aws s3 sync {{ frontend_dist_dir }} s3://{{ s3_frontend_bucket }}
+        --region {{ aws_region }}
+        --delete
+
+    - name: Invalidate CloudFront cache
+      ansible.builtin.command: >
+        aws cloudfront create-invalidation
+        --distribution-id {{ cloudfront_distribution_id }}
+        --paths /*
+
+    - name: Show frontend URL
+      ansible.builtin.debug:
+        msg:
+          - "Frontend publicado."
+          - "Dominio configurado: https://{{ domain_name }}"
+          - "Dominio CloudFront: https://{{ cloudfront_domain_name }}"

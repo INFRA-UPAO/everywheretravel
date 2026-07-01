@@ -1,0 +1,102 @@
+data "aws_region" "current" {}
+
+locals {
+  region = data.aws_region.current.region
+}
+
+# ZIP del codigo fuente de la Lambda.
+# Empaqueta apps/lambda-doc-generator/ (index.js + src/ + node_modules/).
+# IMPORTANTE: ejecutar  npm ci --omit=dev  dentro de apps/lambda-doc-generator/
+# antes de terraform apply para que node_modules/ exista en el zip.
+# CI/CD reemplaza este zip con su propio artefacto; el lifecycle ignora
+# filename y source_code_hash para evitar diffs en deploys posteriores.
+data "archive_file" "lambda_placeholder" {
+  type        = "zip"
+  source_dir  = "${path.module}/../../../apps/lambda-doc-generator"
+  output_path = "${path.module}/lambda_placeholder.zip"
+}
+
+# LOG GROUP
+# FIX CKV_AWS_338 — retención mínima 1 año
+resource "aws_cloudwatch_log_group" "lambda" {
+  name              = "/aws/lambda/${var.prefix}-doc-generante"
+  retention_in_days = 365
+  kms_key_id        = var.kms_logs_arn
+
+  tags = {
+    Name = "${var.prefix}-lambda-docgen-logs"
+  }
+}
+
+# LAMBDA FUNCTION
+resource "aws_lambda_function" "doc_generante" {
+  # checkov:skip=CKV_AWS_272: Code signing no aplica a placeholder — CI/CD reemplaza el código vía ECR/S3
+  # checkov:skip=CKV_AWS_116: Dead Letter Queue configurada via dead_letter_config con var.sqs_dlq_arn
+  function_name = "${var.prefix}-doc-generante"
+  role          = var.lambda_docgen_role_arn
+  runtime       = "nodejs20.x"
+  handler       = "index.handler"
+
+  filename         = data.archive_file.lambda_placeholder.output_path
+  source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
+
+  memory_size                    = var.lambda_memory
+  timeout                        = var.lambda_timeout
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
+  kms_key_arn                    = var.kms_logs_arn
+
+  # FIX CKV_AWS_116 — Dead Letter Queue
+  dead_letter_config {
+    target_arn = var.sqs_dlq_arn
+  }
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  vpc_config {
+    subnet_ids         = var.private_app_subnet_ids
+    security_group_ids = [var.sg_lambda_id]
+  }
+
+  environment {
+    variables = {
+      S3_DOCS_BUCKET                      = var.s3_docs_bucket
+      S3_PREFIX                           = "generated/"
+      DB_SECRET_ARN                       = var.rds_secret_arn
+      SQS_QUEUE_URL                       = var.sqs_queue_url
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1" # reutiliza conexiones HTTP
+    }
+  }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = aws_cloudwatch_log_group.lambda.name
+  }
+
+  lifecycle {
+    ignore_changes = [
+      filename,
+      source_code_hash,
+      environment
+    ]
+  }
+
+  tags = {
+    Name = "${var.prefix}-doc-generante"
+  }
+
+  depends_on = [aws_cloudwatch_log_group.lambda]
+}
+
+# ESM
+resource "aws_lambda_event_source_mapping" "sqs" {
+  event_source_arn = var.sqs_queue_arn
+  function_name    = aws_lambda_function.doc_generante.arn
+
+  batch_size = 5
+
+  maximum_batching_window_in_seconds = 10
+
+  function_response_types = ["ReportBatchItemFailures"]
+}

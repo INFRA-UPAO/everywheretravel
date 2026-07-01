@@ -1,0 +1,121 @@
+---
+- name: Test lambda-doc-generator with a demo SQS-like event
+  hosts: localhost
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    terraform_output_file: "{{ repo_root }}/ansible/terraform-output.json"
+    outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
+    aws_region: "{{ outputs.aws_region.value }}"
+    lambda_function_name: "{{ outputs.lambda_function_name.value }}"
+    s3_docs_bucket: "{{ outputs.s3_docs_bucket.value }}"
+    demo_document_id: "demo-docente"
+    demo_message:
+      type: "RECIBO"
+      documentId: "{{ demo_document_id }}"
+      data:
+        numero: "R-DEMO-001"
+        fecha: "2026-06-28"
+        cliente: "Docente Demo"
+        clienteDocumento: "00000000"
+        tipoDocumentoCliente: "DNI"
+        sucursal: "Trujillo"
+        moneda: "PEN"
+        fileVenta: "DEMO"
+        formaPago: "Contado"
+        creador: "Usuario Demo"
+        observaciones: "Documento generado para prueba academica."
+        detalles:
+          - id: 1
+            cantidad: 1
+            codigo: "SRV-DEMO"
+            descripcion: "Servicio turistico demo"
+            precioUnitario: 150
+
+  tasks:
+    - name: Validate Terraform outputs file exists
+      ansible.builtin.stat:
+        path: "{{ terraform_output_file }}"
+      register: terraform_output_stat
+
+    - name: Stop if Terraform outputs file is missing
+      ansible.builtin.assert:
+        that:
+          - terraform_output_stat.stat.exists
+        fail_msg: "Falta {{ terraform_output_file }}. Ejecuta: terraform -chdir=iac output -json > ansible/terraform-output.json"
+
+    - name: Create temporary Ansible directory
+      ansible.builtin.file:
+        path: "{{ repo_root }}/ansible/.tmp"
+        state: directory
+        mode: "0755"
+
+    - name: Write Lambda test payload
+      ansible.builtin.copy:
+        dest: "{{ repo_root }}/ansible/.tmp/lambda-test-event.json"
+        mode: "0644"
+        content: |
+          {{
+            {
+              'Records': [
+                {
+                  'messageId': 'demo-message',
+                  'body': demo_message | to_json
+                }
+              ]
+            } | to_nice_json
+          }}
+
+    - name: Invoke Lambda with SQS-like event
+      ansible.builtin.command: >
+        aws lambda invoke
+        --region {{ aws_region }}
+        --function-name {{ lambda_function_name }}
+        --cli-binary-format raw-in-base64-out
+        --payload file://{{ repo_root }}/ansible/.tmp/lambda-test-event.json
+        {{ repo_root }}/ansible/.tmp/lambda-test-response.json
+      register: lambda_invoke
+
+    - name: Read Lambda invoke metadata
+      ansible.builtin.set_fact:
+        lambda_invoke_metadata: "{{ lambda_invoke.stdout | from_json }}"
+
+    - name: Read Lambda test response
+      ansible.builtin.slurp:
+        src: "{{ repo_root }}/ansible/.tmp/lambda-test-response.json"
+      register: lambda_response_raw
+
+    - name: Parse Lambda test response
+      ansible.builtin.set_fact:
+        lambda_response: "{{ lambda_response_raw.content | b64decode | from_json }}"
+
+    - name: Stop if Lambda returned a function error
+      ansible.builtin.assert:
+        that:
+          - lambda_invoke_metadata.FunctionError is not defined
+          - (lambda_response.batchItemFailures | default([]) | length) == 0
+        fail_msg: "La Lambda reporto error. Metadata={{ lambda_invoke_metadata }} Response={{ lambda_response }}"
+
+    - name: Find generated PDF in S3
+      ansible.builtin.command: >
+        aws s3api list-objects-v2
+        --region {{ aws_region }}
+        --bucket {{ s3_docs_bucket }}
+        --prefix generated/recibo/{{ demo_document_id }}_
+        --query "length(Contents || `[]`)"
+        --output text
+      register: generated_pdf_count
+      changed_when: false
+
+    - name: Stop if generated PDF was not found
+      ansible.builtin.assert:
+        that:
+          - generated_pdf_count.stdout | int > 0
+        fail_msg: "La Lambda termino sin errores, pero no se encontro PDF en s3://{{ s3_docs_bucket }}/generated/recibo/{{ demo_document_id }}_*.pdf"
+
+    - name: Show generated S3 location
+      ansible.builtin.debug:
+        msg:
+          - "Lambda invocada correctamente. PDF encontrado en:"
+          - "s3://{{ s3_docs_bucket }}/generated/recibo/"
+          - "El archivo debe incluir el prefijo {{ demo_document_id }}."

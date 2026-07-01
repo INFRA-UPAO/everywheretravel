@@ -4,11 +4,6 @@ output "zone_id" {
 }
 
 output "route53_nameservers" {
-  description = "Nameservers de Route53 — copiar a Namecheap (solo prod)"
-  value       = []
-}
-
-output "cloudfront_record_fqdn" {
-  description = "FQDN del record A de CloudFront creado"
-  value       = aws_route53_record.cloudfront.fqdn
+  description = "Nameservers de Route53 -- copiar a Namecheap (solo prod)"
+  value       = local.name_servers
 }
