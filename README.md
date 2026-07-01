@@ -171,11 +171,13 @@ source ~/.bashrc
 ansible --version
 ```
 
-Tambien instala y configura AWS CLI dentro de WSL, porque los playbooks ejecutan comandos `aws`:
+Tambien instala y configura AWS CLI dentro de WSL, porque los playbooks ejecutan comandos `aws`. Usa el instalador oficial (no `apt install awscli`): el paquete de apt depende del Python del sistema, y versiones nuevas de Ubuntu/Python rompen la generacion de ayuda de varios subcomandos `s3api` (error `badly formed help string`). El instalador oficial trae su propio Python aislado y no tiene ese problema:
 
 ```bash
-sudo apt update
-sudo apt install -y awscli
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+unzip awscliv2.zip
+sudo ./aws/install
+rm -rf awscliv2.zip aws
 aws --version
 aws configure sso --profile leturia --use-device-code
 aws sso login --profile leturia --use-device-code
