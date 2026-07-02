@@ -28,19 +28,22 @@
         cmd: python3 {{ repo_root }}/ansible/scripts/package_lambda.py {{ lambda_dir }} {{ lambda_zip }}
         chdir: "{{ repo_root }}"
 
-    - name: Update Lambda function code
-      ansible.builtin.command: >
-        aws lambda update-function-code
-        --region {{ aws_region }}
-        --function-name {{ lambda_function_name }}
-        --zip-file fileb://{{ lambda_zip }}
+    - name: Get current Lambda function configuration
+      amazon.aws.lambda_info:
+        region: "{{ aws_region }}"
+        function_name: "{{ lambda_function_name }}"
+        query: config
+      register: lambda_config
 
-    - name: Wait until Lambda update finishes
-      ansible.builtin.command: >
-        aws lambda wait function-updated
-        --region {{ aws_region }}
-        --function-name {{ lambda_function_name }}
-      changed_when: false
+    - name: Update Lambda function code
+      amazon.aws.lambda:
+        region: "{{ aws_region }}"
+        name: "{{ lambda_function_name }}"
+        zip_file: "{{ lambda_zip }}"
+        role: "{{ lambda_config.functions[0].role }}"
+        runtime: "{{ lambda_config.functions[0].runtime }}"
+        handler: "{{ lambda_config.functions[0].handler }}"
+        state: present
 
     - name: Show Lambda function
       ansible.builtin.debug:
