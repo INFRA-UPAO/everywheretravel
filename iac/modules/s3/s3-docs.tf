@@ -1,7 +1,7 @@
 resource "aws_s3_bucket" "docs" {
   # checkov:skip=CKV_AWS_144: La replicación cross-region no es requerida para el RTO/RPO de este proyecto.
   bucket        = "${var.prefix}-docs-bucket"
-  force_destroy = false
+  force_destroy = !var.is_prod
 
   tags = {
     Name = "${var.prefix}-docs-bucket"

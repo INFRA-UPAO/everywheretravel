@@ -3,6 +3,11 @@ variable "prefix" {
   type        = string
 }
 
+variable "is_prod" {
+  description = "Booleano para saber si es prod o dev"
+  type        = bool
+}
+
 variable "kms_s3_frontend_arn" {
   description = "ARN de la llave KMS para S3 Frontend"
   type        = string

@@ -1,7 +1,7 @@
 resource "aws_s3_bucket" "waf_logs" {
   #checkov:skip=CKV_AWS_144:Cross-region replication not required for WAF logs
   bucket        = "aws-waf-logs-${var.prefix}"
-  force_destroy = false
+  force_destroy = !var.is_prod
 
   tags = {
     Name = "aws-waf-logs-${var.prefix}"

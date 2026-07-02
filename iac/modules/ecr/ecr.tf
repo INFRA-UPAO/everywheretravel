@@ -9,7 +9,7 @@ locals {
 resource "aws_ecr_repository" "monolito" {
   name                 = "${var.prefix}-monolito"
   image_tag_mutability = "IMMUTABLE"
-  force_delete         = false
+  force_delete         = !var.is_prod
 
   image_scanning_configuration {
     scan_on_push = true

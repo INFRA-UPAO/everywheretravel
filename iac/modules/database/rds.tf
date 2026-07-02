@@ -109,7 +109,7 @@ resource "aws_db_instance" "main" {
   monitoring_role_arn                   = aws_iam_role.rds_enhanced_monitoring.arn
   enabled_cloudwatch_logs_exports       = ["postgresql"]
   iam_database_authentication_enabled   = true
-  deletion_protection                   = true
+  deletion_protection                   = var.is_prod
   skip_final_snapshot                   = !var.db_multi_az
   final_snapshot_identifier             = var.db_multi_az ? "${var.prefix}-rds-final-snapshot" : null
   copy_tags_to_snapshot                 = true

@@ -50,6 +50,7 @@ module "ecr" {
   }
 
   prefix                 = local.prefix
+  is_prod                = local.is_prod
   kms_ecr_arn            = module.kms.kms_ecr_arn
   ecs_execution_role_arn = module.iam.ecs_execution_role_arn
 }
@@ -62,6 +63,7 @@ module "s3" {
   }
 
   prefix                 = local.prefix
+  is_prod                = local.is_prod
   kms_s3_frontend_arn    = module.kms.kms_s3_frontend_arn
   kms_s3_frontend_id     = module.kms.kms_s3_frontend_id
   kms_s3_docs_arn        = module.kms.kms_s3_docs_arn
@@ -103,6 +105,7 @@ module "database" {
   providers = { aws = aws.main }
 
   prefix                  = local.prefix
+  is_prod                 = local.is_prod
   db_name                 = var.db_name
   db_username             = var.db_username
   db_instance_class       = local.db_instance_class

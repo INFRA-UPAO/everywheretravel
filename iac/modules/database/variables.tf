@@ -3,6 +3,11 @@ variable "prefix" {
   type        = string
 }
 
+variable "is_prod" {
+  description = "Booleano para saber si es prod o dev"
+  type        = bool
+}
+
 variable "db_name" {
   description = "Nombre de la base de datos"
   type        = string
