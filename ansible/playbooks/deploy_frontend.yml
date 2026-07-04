@@ -47,16 +47,17 @@
         chdir: "{{ frontend_dir }}"
 
     - name: Upload frontend files to S3
-      ansible.builtin.command: >
-        aws s3 sync {{ frontend_dist_dir }} s3://{{ s3_frontend_bucket }}
-        --region {{ aws_region }}
-        --delete
+      community.aws.s3_sync:
+        region: "{{ aws_region }}"
+        bucket: "{{ s3_frontend_bucket }}"
+        file_root: "{{ frontend_dist_dir }}"
+        delete: true
 
     - name: Invalidate CloudFront cache
-      ansible.builtin.command: >
-        aws cloudfront create-invalidation
-        --distribution-id {{ cloudfront_distribution_id }}
-        --paths /*
+      community.aws.cloudfront_invalidation:
+        distribution_id: "{{ cloudfront_distribution_id }}"
+        target_paths:
+          - "/*"
 
     - name: Show frontend URL
       ansible.builtin.debug:

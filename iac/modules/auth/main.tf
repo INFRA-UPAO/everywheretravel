@@ -111,6 +111,17 @@ resource "aws_cognito_user_pool_client" "main" {
 
 # HOSTED UI DOMAIN
 resource "aws_cognito_user_pool_domain" "main" {
-  domain       = var.prefix
+  domain                = var.prefix
+  user_pool_id          = aws_cognito_user_pool.main.id
+  managed_login_version = 2
+}
+
+# MANAGED LOGIN BRANDING
+resource "aws_cognito_managed_login_branding" "main" {
   user_pool_id = aws_cognito_user_pool.main.id
+  client_id    = aws_cognito_user_pool_client.main.id
+
+  use_cognito_provided_values = true
+
+  depends_on = [aws_cognito_user_pool_domain.main]
 }

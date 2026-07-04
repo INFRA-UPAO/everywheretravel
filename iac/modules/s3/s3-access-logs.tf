@@ -11,7 +11,7 @@ resource "aws_s3_bucket" "access_logs" {
   #checkov:skip=CKV_AWS_145:S3 access logging does not support KMS encryption
   #checkov:skip=CKV_AWS_144:Cross-region replication not required for access logs
   bucket        = "${var.prefix}-access-logs"
-  force_destroy = false
+  force_destroy = !var.is_prod
 
   tags = {
     Name = "${var.prefix}-access-logs"
