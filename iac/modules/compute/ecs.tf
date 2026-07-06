@@ -71,7 +71,8 @@ resource "aws_ecs_task_definition" "monolito" {
         { name = "SQS_QUEUE_URL", value = var.sqs_queue_url },
         { name = "S3_DOCS_BUCKET", value = var.s3_docs_bucket },
         { name = "SERVER_PORT", value = tostring(var.ecs_app_port) },
-        { name = "COGNITO_ISSUER_URI", value = "https://cognito-idp.${local.region}.amazonaws.com/${var.cognito_user_pool_id}" }
+        { name = "COGNITO_ISSUER_URI", value = "https://cognito-idp.${local.region}.amazonaws.com/${var.cognito_user_pool_id}" },
+        { name = "COGNITO_USER_POOL_ID", value = var.cognito_user_pool_id }
       ]
 
       secrets = [

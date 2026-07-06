@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { take } from 'rxjs';
 import { CognitoAuthService } from '../../../core/service/cognito/cognito-auth.service';
 import { StorageService } from '../../../core/service/storage.service';
 import { UserService } from '../../../core/service/User/user.service';
@@ -57,7 +58,9 @@ export class CallbackComponent implements OnInit {
   private router = inject(Router);
 
   ngOnInit(): void {
-    this.cognitoAuthService.handleCallback().subscribe({
+    // El intercambio del code por tokens ya lo hizo el provideAppInitializer
+    // (checkAuth()) en app.config.ts antes de que esta ruta se active.
+    this.cognitoAuthService.isAuthenticated$.pipe(take(1)).subscribe({
       next: (isAuthenticated) => {
         if (isAuthenticated) {
           this.fetchUserProfile();

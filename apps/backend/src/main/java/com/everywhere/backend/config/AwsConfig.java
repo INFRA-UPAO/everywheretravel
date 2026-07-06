@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.sqs.SqsClient;
@@ -34,6 +35,14 @@ public class AwsConfig {
     @Bean
     public SqsClient sqsClient() {
         return SqsClient.builder()
+                .region(Region.of(awsRegion))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .build();
+    }
+
+    @Bean
+    public CognitoIdentityProviderClient cognitoIdentityProviderClient() {
+        return CognitoIdentityProviderClient.builder()
                 .region(Region.of(awsRegion))
                 .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();

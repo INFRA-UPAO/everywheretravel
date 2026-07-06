@@ -9,7 +9,7 @@
     aws_region: "{{ outputs.aws_region.value }}"
     lambda_function_name: "{{ outputs.lambda_function_name.value }}"
     s3_docs_bucket: "{{ outputs.s3_docs_bucket.value }}"
-    demo_document_id: "demo-docente"
+    demo_document_id: "demo-{{ ci_run_id | default(lookup('pipe', 'date +%s')) }}"
     demo_message:
       type: "RECIBO"
       documentId: "{{ demo_document_id }}"

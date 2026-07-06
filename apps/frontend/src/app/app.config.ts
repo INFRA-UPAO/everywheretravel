@@ -1,7 +1,8 @@
-import { ApplicationConfig, provideZoneChangeDetection, importProvidersFrom } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, importProvidersFrom, provideAppInitializer, inject } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
-import { provideAuth } from 'angular-auth-oidc-client';
+import { provideAuth, OidcSecurityService } from 'angular-auth-oidc-client';
+import { firstValueFrom } from 'rxjs';
 import { jwtInterceptor } from './core/interceptos/jwt.interceptor';
 import { cacheInterceptor } from './core/interceptos/cache.interceptor';
 import { environment } from '../environments/environment';
@@ -33,6 +34,10 @@ export const appConfig: ApplicationConfig = {
         useRefreshToken: true,
         autoUserInfo: false,
       },
+    }),
+    provideAppInitializer(() => {
+      const oidcSecurityService = inject(OidcSecurityService);
+      return firstValueFrom(oidcSecurityService.checkAuth());
     }),
   ],
 };

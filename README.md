@@ -17,144 +17,58 @@ Proyecto de infraestructura como código usando Terraform + AWS.
 
 ---
 
-## Configuracion de AWS
+## Configuracion de AWS (una sola vez por maquina)
 
 El proyecto no usa credenciales hardcodeadas. Cada integrante configura un profile local de AWS CLI apuntando a la cuenta AWS del equipo.
 
-### AWS SSO / IAM Identity Center
-
-Usar SSO y agregar un nuevo usuario, configurar un profile SSO:
-
 ```bash
-aws configure sso --profile leturia --use-device-code
+aws configure sso --profile tu-profile --use-device-code
 ```
 
-Te pedira la start URL y la region del SSO del equipo.
-
-Luego inicia sesion:
+Te pedira la start URL y la region del SSO del equipo. Luego inicia sesion:
 
 ```bash
-aws sso login --profile leturia --use-device-code
+aws sso login --profile tu-profile --use-device-code
 ```
 
-Antes de usar Terraform, setea la variable de entorno:
+Antes de usar Terraform o Ansible, setea la variable de entorno en cada terminal nueva:
 
 ```powershell
 # PowerShell
-$env:AWS_PROFILE = "leturia"
+$env:AWS_PROFILE = "tu-profile"
 ```
 
 ```bash
-# Bash / Linux / Mac
-export AWS_PROFILE=leturia
+# Bash / WSL / Linux / Mac
+export AWS_PROFILE=tu-profile
 ```
 
-> **Nota:** Para una prueba, el camino mas simple suele ser el usuario IAM temporal `leturia`. SSO es preferible si el equipo ya tiene IAM Identity Center configurado y puede invitarlo.
+Confirma que las credenciales estan activas:
+
+```bash
+aws sts get-caller-identity
+```
+
+> **Nota:** Si trabajas con Windows + WSL (ver seccion siguiente), esto hay que
+> configurarlo **una vez en PowerShell y otra vez dentro de WSL** — son dos
+> entornos separados, cada uno con su propio `~/.aws`. Para no repetir el
+> login, se puede symlinkear la config de Windows dentro de WSL:
+> `ln -s /mnt/c/Users/<tu-usuario>/.aws ~/.aws`.
 
 ---
 
-## Primeros pasos
+## Ansible en Windows (WSL)
 
-### ¿Eres el primero en configurar el proyecto? → Corre el bootstrap
-
-El bootstrap crea el bucket S3 en AWS donde todos los devs compartiran el estado de Terraform. **Solo se hace una vez** (ya sea por el lider del equipo o quien levanta el proyecto por primera vez).
-
-```bash
-cd iac/bootstrap
-terraform init
-terraform apply
-```
-
-> Si el bucket ya existe en AWS, omite este paso por completo.
-
----
-
-### ¿Ya existe el bucket? → Solo haz el init normal
-
-Todos los demas devs simplemente se paran en `iac/` y corren:
-
-```bash
-cd iac
-terraform init
-```
-
-Eso descarga el estado compartido desde S3 y ya pueden trabajar sincronizados con el resto del equipo.
-
----
-
-## Workspaces de Terraform
-
-Este proyecto usa **Terraform workspaces** para separar los entornos (dev, staging, prod, etc.). Cada workspace mantiene su propio archivo de estado, asi que los cambios en un entorno no afectan a los demas.
-
-### Verificar en que workspace estas
-
-**Antes de correr cualquier comando** (`plan`, `apply`, `destroy`, etc.), verifica siempre en que workspace te encuentras:
-
-```bash
-terraform workspace show
-```
-
-### Listar workspaces disponibles
-
-```bash
-terraform workspace list
-```
-
-El workspace activo aparece marcado con un `*`.
-
-### Cambiar de workspace
-
-```bash
-terraform workspace select prod
-```
-
-### Crear un nuevo workspace
-
-```bash
-terraform workspace new nombre-del-workspace (dev o prod)
-```
-
-> **IMPORTANTE:** Si se hace `terraform apply` sin verificar el workspace, podrias aplicar cambios en el entorno equivocado (por ejemplo, modificar produccion cuando querias tocar dev). Siempre corre `terraform workspace show` antes de cualquier operacion destructiva.
-
-### Archivos de variables por entorno (.tfvars)
-
-Los archivos `.tfvars` contienen las variables especificas de cada entorno (region, dominio, nombre del proyecto, etc.) y **no se suben al repositorio** por seguridad (estan en `.gitignore`).
-
-Se subiran los tfvars en el comentario de la tarea en canvas. Luego crea los archivos manualmente en la carpeta `iac/tfvars/`:
-
-```
-iac/tfvars/
-├── dev.tfvars
-├── prod.tfvars
-```
-
-### Ejecutar plan o apply con variables por entorno
-
-Siempre especifica el archivo `.tfvars` correspondiente al workspace en el que estas:
-
-```bash
-terraform plan -var-file="tfvars/prod.tfvars"
-terraform apply -var-file="tfvars/prod.tfvars"
-```
-
----
-
-## Uso de Ansible en Windows
-
-Si estas en Windows, ejecuta Ansible desde **WSL con Ubuntu**. Ansible no se recomienda como control node nativo en Windows.
-
-En Windows se usan dos terminales:
+Si estas en Windows, ejecuta Ansible desde **WSL con Ubuntu** (no se recomienda como control node nativo en Windows). Se usan dos terminales:
 
 - **PowerShell:** Terraform y generacion de outputs.
 - **WSL / Ubuntu:** Ansible, AWS CLI para los playbooks y Docker.
 
-Instala WSL desde PowerShell:
+Instala WSL desde PowerShell y entra al proyecto montado desde Windows:
 
 ```powershell
 wsl --install -d Ubuntu
 ```
-
-Despues de reiniciar si Windows lo pide, abre Ubuntu y entra al proyecto montado desde Windows:
 
 ```bash
 cd "/mnt/c/ruta-al-proyecto/proyecto-iac"
@@ -171,7 +85,7 @@ source ~/.bashrc
 ansible --version
 ```
 
-Tambien instala y configura AWS CLI dentro de WSL, porque los playbooks ejecutan comandos `aws`. Usa el instalador oficial (no `apt install awscli`): el paquete de apt depende del Python del sistema, y versiones nuevas de Ubuntu/Python rompen la generacion de ayuda de varios subcomandos `s3api` (error `badly formed help string`). El instalador oficial trae su propio Python aislado y no tiene ese problema:
+Instalar AWS CLI dentro de WSL con el instalador oficial
 
 ```bash
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
@@ -179,179 +93,154 @@ unzip awscliv2.zip
 sudo ./aws/install
 rm -rf awscliv2.zip aws
 aws --version
-aws configure sso --profile leturia --use-device-code
-aws sso login --profile leturia --use-device-code
-export AWS_PROFILE=leturia
-aws sts get-caller-identity
 ```
 
-Si vas a desplegar el backend, Docker Desktop debe estar abierto y con integracion WSL activa para Ubuntu:
+Configura las credenciales AWS dentro de WSL (ver seccion anterior) e instala las colecciones de Ansible:
+
+```bash
+ansible-galaxy collection install -r ansible/requirements.yml
+```
+
+Si vas a desplegar el backend, Docker Desktop debe estar abierto y con integracion WSL activa:
 
 ```text
 Docker Desktop > Settings > Resources > WSL Integration > Ubuntu
 ```
 
-Los comandos de Terraform pueden ejecutarse desde PowerShell o WSL. Para esta guia en Windows se usa PowerShell para Terraform y WSL para Ansible.
+Verifica que Docker responda desde WSL:
+
+```bash
+docker ps
+```
 
 ---
 
-## Prueba completa para docente
+## Terraform: primeros pasos
 
-Esta guia permite probar el proyecto completo sin pipelines:
+### ¿Eres el primero en configurar el proyecto? → Corre el bootstrap
+
+El bootstrap crea el bucket S3 en AWS donde todos los devs compartiran el estado de Terraform. **Solo se hace una vez** (ya sea por el lider del equipo o quien levanta el proyecto por primera vez). Si el bucket ya existe en AWS, omite este paso por completo.
+
+```bash
+cd iac/bootstrap
+terraform init
+terraform apply
+```
+
+### Init normal (si el bucket ya existe)
+
+```bash
+cd iac
+terraform init
+```
+
+### Workspaces
+
+Este proyecto usa **Terraform workspaces** para separar los entornos (dev, prod). Cada workspace mantiene su propio archivo de estado.
+
+```bash
+terraform workspace show          # en que workspace estas (revisa SIEMPRE antes de plan/apply/destroy)
+terraform workspace list          # workspaces disponibles (el activo tiene un *)
+terraform workspace select prod   # cambiar de workspace
+terraform workspace new prod      # crear uno nuevo
+```
+
+> **IMPORTANTE:** aplicar sin verificar el workspace puede modificar el entorno equivocado (por ejemplo, tocar produccion en vez de dev).
+
+### Archivos de variables por entorno (.tfvars)
+
+Los archivos `.tfvars` contienen las variables especificas de cada entorno (region, dominio, nombre del proyecto, etc.) y **no se suben al repositorio** (estan en `.gitignore`). Se comparten por otro medio (ver el comentario de la tarea en Canvas) y se colocan a mano en:
+
+```
+iac/tfvars/
+├── dev.tfvars
+├── prod.tfvars
+```
+
+Siempre especifica el archivo correspondiente al workspace activo:
+
+```bash
+terraform plan  -var-file="tfvars/prod.tfvars"
+terraform apply -var-file="tfvars/prod.tfvars"
+```
+
+---
+
+## Guia de despliegue completo
+
+Levanta el proyecto entero (infraestructura + backend + frontend + Lambda) sin depender del pipeline de CI/CD. Sirve tanto para una entrega/demo como para probar cambios en `dev`.
 
 - Terraform provisiona la infraestructura en AWS.
-- Ansible configura y despliega backend, frontend y Lambda.
-- El login inicia en la pagina del sistema (`/auth/login`) y autentica con AWS Cognito.
+- Ansible construye y despliega backend, frontend y Lambda.
+- El login inicia en `/auth/login` y autentica con AWS Cognito.
 - La Lambda `lambda-doc-generator` genera documentos y los guarda en S3.
 
-### Elegir entorno
-
-Para la entrega se recomienda `prod`.
+Elegi el entorno antes de empezar:
 
 | Entorno    | Workspace Terraform | Archivo tfvars           | Variable Ansible |
 | ---------- | ------------------- | ------------------------ | ---------------- |
 | Produccion | `prod`              | `iac/tfvars/prod.tfvars` | `env=prod`       |
 | Desarrollo | `dev`               | `iac/tfvars/dev.tfvars`  | `env=dev`        |
 
-En los comandos siguientes se usa `prod`. Si quieres probar `dev`, cambia `prod` por `dev` y usa `tfvars/dev.tfvars`.
+Los comandos siguientes usan `prod` — para `dev` cambia `prod` por `dev` en todos lados. Antes de empezar, confirma que Docker Desktop este abierto, que ya tengas configurado el acceso AWS (seccion "Configuracion de AWS") y, si estas en Windows, Ansible en WSL (seccion anterior).
 
-> Antes de empezar, confirma que Docker Desktop este abierto y que el archivo `iac/tfvars/prod.tfvars` exista.
+### 1. Provisionar infraestructura con Terraform
 
-### 1. Configurar acceso AWS
-
-Con SSO en PowerShell:
-
-```powershell
-aws configure sso --profile leturia --use-device-code
-aws sso login --profile leturia --use-device-code
-$env:AWS_PROFILE="leturia"
-aws sts get-caller-identity
-```
-
-El comando `aws sts get-caller-identity` debe mostrar la cuenta AWS del equipo.
-
-### 2. Provisionar infraestructura con Terraform en Windows
-
-Ejecuta Terraform desde **PowerShell**:
+Desde **PowerShell** (Windows) o la misma terminal (Linux/macOS):
 
 ```powershell
 cd iac
 terraform init
-terraform workspace select prod
+terraform workspace select prod   # o "terraform workspace new prod" si no existe
 terraform validate
 terraform apply -var-file="tfvars/prod.tfvars"
 terraform output -json > ../ansible/terraform-output.json
 cd ..
 ```
 
-Si el workspace `prod` no existe, crealo una sola vez y vuelve a ejecutar el bloque anterior:
+El archivo `ansible/terraform-output.json` se genera **despues** de que el `apply` termine correctamente — los playbooks no funcionan sin el.
 
-```powershell
-cd iac
-terraform workspace new prod
-cd ..
-```
+### 2. Desplegar backend en ECS
 
-El archivo `ansible/terraform-output.json` se genera **despues** de que el `terraform apply` termine correctamente. Los playbooks no funcionan sin ese archivo.
-
-### 3. Preparar WSL para Ansible en Windows
-
-Abre Ubuntu/WSL y entra al proyecto:
-
-```bash
-cd "/mnt/c/ruta-al-proyecto/proyecto-iac"
-```
-
-Configura el mismo profile AWS dentro de WSL:
-
-```bash
-aws sso login --profile leturia --use-device-code
-export AWS_PROFILE=leturia
-aws sts get-caller-identity
-```
-
-Verifica que Docker Desktop este disponible desde WSL:
-
-```bash
-docker ps
-```
-
-Instala colecciones de Ansible:
-
-```bash
-ansible-galaxy collection install -r ansible/requirements.yml
-```
-
-### 4. Provisionar y desplegar desde Linux o macOS
-
-Si estas en Linux o macOS, puedes ejecutar todo en la misma terminal:
-
-```bash
-export AWS_PROFILE=leturia
-aws sso login --profile leturia --use-device-code
-
-cd iac
-terraform init
-terraform workspace select prod || terraform workspace new prod
-terraform validate
-terraform apply -var-file="tfvars/prod.tfvars"
-terraform output -json > ../ansible/terraform-output.json
-cd ..
-
-ansible-galaxy collection install -r ansible/requirements.yml
-```
-
-Despues continua con los playbooks de la siguiente seccion.
-
-### 5. Desplegar backend en ECS
-
-Este paso construye la imagen Docker del backend, la sube a ECR y actualiza el servicio ECS.
+Construye la imagen Docker del backend, la sube a ECR y actualiza el servicio ECS. El repositorio ECR tiene tags **inmutables**: usa un `image_tag` que no hayas usado antes.
 
 ```bash
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_backend_ecs.yml -e env=prod -e image_tag=demo-v1
 ```
 
-### 6. Desplegar Lambda doc generator
-
-Este paso instala dependencias de produccion, empaqueta la Lambda y actualiza la funcion en AWS.
+### 3. Desplegar Lambda doc generator
 
 ```bash
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_lambda_doc_generator.yml -e env=prod
 ```
 
-### 7. Desplegar frontend Angular
+### 4. Desplegar frontend Angular
 
-Este paso genera `environment.prod.ts` con los valores reales de Cognito, compila Angular, sube el SPA al bucket S3 del frontend e invalida CloudFront.
+Genera `environment.prod.ts` con los valores reales de Cognito, compila Angular, sube el SPA al bucket S3 del frontend e invalida CloudFront.
 
 ```bash
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_frontend.yml -e env=prod
 ```
 
-### 8. Crear usuario demo en Cognito
+> El frontend y el backend se despliegan por separado — cambiar uno no actualiza el otro. Si tocaste código del frontend, hay que correr este paso para verlo reflejado.
 
-```bash
-ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/create_cognito_demo_user.yml -e demo_email=docente@example.com -e demo_password='Demo12345!'
-```
+### 5. Crear el primer usuario en Cognito
 
-Usa ese correo y password para iniciar sesion desde la pagina `/auth/login`.
+Paso manual, una sola vez por ambiente nuevo (reemplaza a un workflow/playbook automatico que se uso antes; se hace a mano para no depender de un rol IAM amplio de CI/CD solo para esto):
 
-### 9. Probar Lambda doc generator
+**AWS Console → Cognito → User pools → `everywhere-travel-<env>-user-pool` → Users → Create user**, con email `admin@everywheretravel.online` (tiene que coincidir exacto con la fila semilla que crea Flyway en `usuarios`, ver `V2__seed_initial_data.sql`). Dejá que Cognito mande la invitación por email (no marques "Set a password").
 
-Este paso invoca la Lambda con un evento de prueba similar al que llegaria desde SQS.
+Los usuarios siguientes se crean autenticado como ese usuario contra `POST /api/v1/users` — no hace falta volver a la consola.
+
+### 6. Probar Lambda doc generator
 
 ```bash
 ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/test_lambda_doc_generator.yml -e env=prod
 ```
 
-Luego revisa el bucket de documentos en S3, dentro de:
+Luego revisa el bucket de documentos en S3, dentro de `generated/recibo/`.
 
-```text
-generated/recibo/
-```
-
-### 10. Abrir la aplicacion
-
-Puedes obtener las URLs con:
+### 7. Abrir la aplicacion
 
 ```powershell
 cd iac
@@ -360,35 +249,7 @@ terraform output domain_name
 cd ..
 ```
 
-Abre el dominio configurado o el dominio de CloudFront. El flujo esperado es:
-
-1. Entrar a `/auth/login`.
-2. Presionar el boton de inicio de sesion.
-3. Autenticarse en AWS Cognito.
-4. Volver por `/callback`.
-5. Entrar al dashboard.
-
----
-
-## Despliegue manual con Terraform + Ansible
-
-Resumen del orden correcto para levantar el proyecto completo en `prod`:
-
-1. Configurar acceso AWS con SSO.
-2. En Windows, ejecutar Terraform desde PowerShell. En Linux/macOS, usar la misma terminal.
-3. `terraform init`.
-4. `terraform workspace select prod` o `terraform workspace new prod`.
-5. `terraform validate`.
-6. `terraform apply -var-file="tfvars/prod.tfvars"`.
-7. `terraform output -json > ../ansible/terraform-output.json`.
-8. En Windows, pasar a WSL para ejecutar Ansible. En Linux/macOS, continuar en la misma terminal.
-9. `ansible-galaxy collection install -r ansible/requirements.yml`.
-10. Ejecutar `deploy_backend_ecs.yml`.
-11. Ejecutar `deploy_lambda_doc_generator.yml`.
-12. Ejecutar `deploy_frontend.yml`.
-13. Ejecutar `create_cognito_demo_user.yml`.
-14. Probar app desde CloudFront o dominio.
-15. Ejecutar `test_lambda_doc_generator.yml`.
+Abre el dominio configurado o el de CloudFront. Flujo esperado: `/auth/login` → boton de inicio de sesion → autenticarse en Cognito → volver por `/callback` → dashboard.
 
 ---
 
@@ -415,14 +276,7 @@ El servicio debe aparecer estable y con tareas en ejecucion.
 
 ### Frontend
 
-```powershell
-cd iac
-terraform output cloudfront_domain_name
-terraform output domain_name
-cd ..
-```
-
-La aplicacion debe cargar desde CloudFront o desde el dominio configurado.
+La aplicacion debe cargar desde CloudFront o desde el dominio configurado (ver outputs `cloudfront_domain_name` / `domain_name`).
 
 ### Cognito
 
@@ -447,6 +301,7 @@ iac/
 ```
 ansible/
 ├── inventory/    # Inventario local para ejecutar playbooks desde la maquina del docente
-├── playbooks/    # Despliegue de backend, frontend, Lambda y usuario demo
+├── playbooks/    # Despliegue de backend, frontend y Lambda
 └── scripts/      # Utilidades usadas por los playbooks
 ```
+

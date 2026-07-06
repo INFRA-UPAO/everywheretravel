@@ -32,3 +32,8 @@ variable "kms_backups_arn" {
   description = "ARN de la llave KMS para AWS Backup"
   type        = string
 }
+
+variable "cognito_user_pool_arn" {
+  description = "ARN del Cognito User Pool (para altas/bajas de usuarios desde el backend)"
+  type        = string
+}
