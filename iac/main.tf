@@ -314,6 +314,16 @@ module "lambda" {
   depends_on = [module.iam]
 }
 
+module "github_oidc" {
+  source    = "./modules/github-oidc"
+  providers = { aws = aws.main }
+
+  prefix           = local.prefix
+  env              = local.env
+  create_provider  = local.env == "dev"
+  create_plan_role = local.env == "dev"
+}
+
 module "observability" {
   source = "./modules/observability"
 

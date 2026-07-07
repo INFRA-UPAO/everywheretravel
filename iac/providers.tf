@@ -16,10 +16,18 @@ terraform {
       source  = "hashicorp/archive"
       version = "2.8.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "4.3.0"
+    }
   }
 }
 
 provider "archive" {
+  # Configuration options
+}
+
+provider "tls" {
   # Configuration options
 }
 
