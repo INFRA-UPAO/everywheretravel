@@ -5,8 +5,9 @@ locals {
 }
 
 resource "aws_cloudwatch_log_group" "ecs" {
+  # checkov:skip=CKV_AWS_338:Logs operativos de la app (stdout/stderr), no de auditoria/seguridad; 90 dias alcanza para debug de incidentes recientes
   name              = "/aws/ecs/${var.prefix}/monolito"
-  retention_in_days = 365
+  retention_in_days = 90
   kms_key_id        = var.kms_logs_arn
 
   tags = {

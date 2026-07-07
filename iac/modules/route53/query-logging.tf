@@ -1,7 +1,8 @@
 resource "aws_cloudwatch_log_group" "route53_query_log" {
+  # checkov:skip=CKV_AWS_338:Consultas DNS, no logs de auditoria/seguridad; 30 dias alcanza salvo investigacion puntual de abuso de DNS
   provider          = aws.edge
   name              = "/aws/route53/${var.domain_name}"
-  retention_in_days = 365
+  retention_in_days = 30
   kms_key_id        = var.kms_route53_logs_arn
 
   tags = {

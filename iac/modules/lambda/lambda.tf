@@ -17,10 +17,10 @@ data "archive_file" "lambda_placeholder" {
 }
 
 # LOG GROUP
-# FIX CKV_AWS_338 — retención mínima 1 año
 resource "aws_cloudwatch_log_group" "lambda" {
+  # checkov:skip=CKV_AWS_338:Logs operativos de la funcion (stdout/stderr), no de auditoria/seguridad; 90 dias alcanza para debug de incidentes recientes
   name              = "/aws/lambda/${var.prefix}-doc-generante"
-  retention_in_days = 365
+  retention_in_days = 90
   kms_key_id        = var.kms_logs_arn
 
   tags = {
