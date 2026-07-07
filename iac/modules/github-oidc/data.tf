@@ -1,9 +1,6 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# Thumbprint del certificado TLS del issuer de GitHub Actions, requerido por
-# aws_iam_openid_connect_provider. Se recalcula en cada plan en vez de
-# hardcodear un valor que puede rotar.
 data "tls_certificate" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
 }

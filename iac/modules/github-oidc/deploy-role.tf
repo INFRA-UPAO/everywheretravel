@@ -1,7 +1,3 @@
-# Rol que asume GitHub Actions (via OIDC) para correr terraform apply + los
-# playbooks de Ansible contra este workspace. Un rol por workspace: el trust
-# condition exige que el job declare `environment: <var.env>`, así un PR
-# nunca puede asumir el rol de prod (ver data "aws_iam_policy_document" "deploy_trust").
 data "aws_iam_policy_document" "deploy_trust" {
   statement {
     sid     = "AllowGithubActionsAssume"
@@ -36,12 +32,6 @@ resource "aws_iam_role" "deploy" {
   }
 }
 
-# Permisos "amplios por servicio" (EC2/VPC, ALB, ECS, ECR, RDS, Lambda, SQS/SNS,
-# Cognito, API Gateway, CloudFront/WAF/ACM, Route53, Backup, CloudWatch/Logs).
-# No es least-privilege exhaustivo: es el scoping acordado para el proyecto.
-# Va como policy inline (en vez de managed policies adjuntas) porque un rol
-# IAM tiene un limite duro de 10 managed policies adjuntas (no ajustable via
-# Service Quotas), y esta lista ya superaba ese limite.
 data "aws_iam_policy_document" "deploy_broad_services" {
   # checkov:skip=CKV_AWS_107:Amplio por servicio, acordado para el proyecto
   # checkov:skip=CKV_AWS_108:Amplio por servicio, acordado para el proyecto
@@ -85,11 +75,6 @@ resource "aws_iam_role_policy" "deploy_broad_services" {
   policy = data.aws_iam_policy_document.deploy_broad_services.json
 }
 
-# Politica inline para lo que sí conviene acotar por nombre: S3 (buckets del
-# proyecto + el bucket de tfstate para terraform init/apply), IAM (roles/políticas
-# que crean los módulos de iac/modules/iam, más PassRole hacia ellos) y KMS
-# (las llaves del proyecto no tienen un ARN previsible por nombre, así que
-# queda en Resource "*" para las acciones de uso, no de administración de cuentas).
 data "aws_iam_policy_document" "deploy_permissions" {
   # checkov:skip=CKV_AWS_109:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
   # checkov:skip=CKV_AWS_111:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
