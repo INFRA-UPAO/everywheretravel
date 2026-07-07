@@ -27,12 +27,6 @@ export class CognitoAuthService {
     return this.oidcSecurityService.getAccessToken();
   }
 
-  handleCallback(): Observable<boolean> {
-    return this.oidcSecurityService.checkAuth().pipe(
-      map(result => result.isAuthenticated)
-    );
-  }
-
   getUserEmail(): Observable<string | null> {
     return this.oidcSecurityService.userData$.pipe(
       map(userData => userData?.userData?.email ?? null)

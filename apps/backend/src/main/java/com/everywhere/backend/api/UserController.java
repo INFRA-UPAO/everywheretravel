@@ -1,10 +1,13 @@
 package com.everywhere.backend.api;
 
+import com.everywhere.backend.model.dto.CreateUserRequestDTO;
 import com.everywhere.backend.model.dto.UpdateUserNameDTO;
 import com.everywhere.backend.model.dto.UserProfileDTO;
+import com.everywhere.backend.security.RequirePermission;
 import com.everywhere.backend.security.SecurityContextHelper;
 import com.everywhere.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,5 +30,11 @@ public class UserController {
         Integer userId = securityContextHelper.getCurrentUser().getId();
         String name = request != null ? request.getName() : null;
         return ResponseEntity.ok(userService.updateUserName(userId, name));
+    }
+
+    @PostMapping
+    @RequirePermission(module = "USUARIOS", permission = "CREATE")
+    public ResponseEntity<UserProfileDTO> createUser(@RequestBody CreateUserRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.createUser(request));
     }
 }

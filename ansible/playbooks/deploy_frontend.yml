@@ -18,6 +18,13 @@
     frontend_dist_dir: "{{ frontend_dir }}/dist/everywhere-frontend/browser"
 
   tasks:
+    - name: Validate required environment name
+      ansible.builtin.assert:
+        that:
+          - env is defined
+          - env | length > 0
+        fail_msg: "Run with -e env=dev (o -e env=prod)"
+
     - name: Generate production Angular environment
       ansible.builtin.copy:
         dest: "{{ frontend_dir }}/src/environments/environment.prod.ts"

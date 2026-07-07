@@ -12,4 +12,5 @@ public interface UserService {
     UserBasicDTO getUserBasicInfo(Integer userId);
     UserProfileDTO getUserProfile(Integer userId);
     UserProfileDTO updateUserName(Integer userId, String name);
+    UserProfileDTO createUser(CreateUserRequestDTO request);
 }

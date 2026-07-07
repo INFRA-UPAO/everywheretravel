@@ -33,13 +33,14 @@ module "iam" {
   source    = "./modules/iam"
   providers = { aws = aws.main }
 
-  prefix          = local.prefix
-  kms_s3_docs_arn = module.kms.kms_s3_docs_arn
-  kms_sqs_arn     = module.kms.kms_sqs_arn
-  kms_secrets_arn = module.kms.kms_secrets_arn
-  kms_logs_arn    = module.kms.kms_logs_arn
-  kms_ecr_arn     = module.kms.kms_ecr_arn
-  kms_backups_arn = module.kms.kms_backups_arn
+  prefix                = local.prefix
+  kms_s3_docs_arn       = module.kms.kms_s3_docs_arn
+  kms_sqs_arn           = module.kms.kms_sqs_arn
+  kms_secrets_arn       = module.kms.kms_secrets_arn
+  kms_logs_arn          = module.kms.kms_logs_arn
+  kms_ecr_arn           = module.kms.kms_ecr_arn
+  kms_backups_arn       = module.kms.kms_backups_arn
+  cognito_user_pool_arn = module.auth.cognito_user_pool_arn
 }
 
 module "ecr" {

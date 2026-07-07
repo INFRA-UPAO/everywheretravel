@@ -173,6 +173,13 @@ data "aws_iam_policy_document" "ecs_task_permissions" {
         }
     }
 
+    statement {
+        sid       = "CognitoAdminUserManagement"
+        effect    = "Allow"
+        actions   = ["cognito-idp:AdminCreateUser", "cognito-idp:AdminDeleteUser"]
+        resources = [var.cognito_user_pool_arn]
+    }
+
 }
 
 resource "aws_iam_role_policy" "ecs_task" {
