@@ -305,3 +305,40 @@ ansible/
 └── scripts/      # Utilidades usadas por los playbooks
 ```
 
+Agregar al final de README.md (después de "## Estructura del proyecto")
+
+---
+
+## CI/CD con GitHub Actions (bootstrap manual, una sola vez)
+
+Esta seccion deja operativo el pipeline de `.github/workflows/`. Es **estado real en AWS/GitHub**, no código versionado, así que se hace a mano (con SSO local ya configurado) y no lo ejecuta el pipeline.
+
+Orden obligatorio: **1 → 2 → 3 → 4**. El paso 2 (workspace `prod`) depende del OIDC provider que crea el paso 1 (workspace `dev`).
+
+### 1. Terraform apply en workspace `dev`
+
+Crea el OIDC provider de GitHub Actions (único por cuenta AWS), el rol de deploy de dev y el rol de solo lectura para `terraform plan` en PRs.
+
+\`\`\`powershell
+cd iac
+terraform init
+terraform workspace select dev
+terraform apply -var-file="tfvars/dev.tfvars"
+terraform output -raw github_deploy_role_arn
+terraform output -raw github_plan_role_arn
+cd ..
+\`\`\`
+
+Guarda los dos ARNs que imprime, se usan en el paso 3.
+
+### 2. Terraform apply en workspace `prod`
+
+Crea el rol de deploy de prod (reutiliza el OIDC provider ya creado en dev, por eso el orden importa).
+
+\`\`\`powershell
+cd iac
+terraform workspace select prod
+terraform apply -var-file="tfvars/prod.tfvars"
+terraform output -raw github_deploy_role_arn
+cd ..
+\`\`\`
