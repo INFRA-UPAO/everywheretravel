@@ -342,3 +342,66 @@ terraform apply -var-file="tfvars/prod.tfvars"
 terraform output -raw github_deploy_role_arn
 cd ..
 \`\`\`
+
+### 3. GitHub Environments, variables y secrets (manual, desde la UI)
+
+**Crear los Environments** — `Settings → Environments → New environment`:
+
+- **`dev`**: crealo sin reglas de protección (el deploy a dev es automático en cada push a la rama `dev`).
+- **`prod`**: crealo y marcá **"Required reviewers"**, agregando a los colaboradores del repo que deban aprobar cada deploy a producción.
+
+**Variables por Environment** — dentro de cada Environment, `Add variable` (no son secretas, vienen de `iac/tfvars/*.tfvars`):
+
+Environment `dev`:
+
+| Variable         | Valor                         |
+| ---------------- | ----------------------------- |
+| `PROJECT_NAME`   | `everywhere-travel`           |
+| `AWS_REGION`     | `us-east-2`                   |
+| `DOMAIN_NAME`    | `dev.everywheretravel.online` |
+| `ALERT_EMAIL`    | `ti@everywheretravel.online`  |
+| `DB_NAME`        | `everywhere_travel`           |
+| `DB_USERNAME`    | `app_user`                    |
+| `ECS_APP_PORT`   | `8080`                        |
+| `LAMBDA_MEMORY`  | `256`                         |
+| `LAMBDA_TIMEOUT` | `30`                          |
+| `VPC_CIDR`       | `10.0.0.0/16`                 |
+
+Environment `prod` (mismas claves que dev, mas las dos de Zoho, con estos valores):
+
+| Variable                  | Valor                                                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PROJECT_NAME`            | `everywhere-travel`                                                                                                                                                                                                                          |
+| `AWS_REGION`              | `us-east-2`                                                                                                                                                                                                                                  |
+| `DOMAIN_NAME`             | `everywheretravel.online`                                                                                                                                                                                                                    |
+| `ALERT_EMAIL`             | `ti@everywheretravel.online`                                                                                                                                                                                                                 |
+| `DB_NAME`                 | `everywhere_travel`                                                                                                                                                                                                                          |
+| `DB_USERNAME`             | `app_user`                                                                                                                                                                                                                                   |
+| `ECS_APP_PORT`            | `8080`                                                                                                                                                                                                                                       |
+| `LAMBDA_MEMORY`           | `256`                                                                                                                                                                                                                                        |
+| `LAMBDA_TIMEOUT`          | `30`                                                                                                                                                                                                                                         |
+| `VPC_CIDR`                | `10.0.0.0/16`                                                                                                                                                                                                                                |
+| `ZOHO_VERIFICATION_TOKEN` | `zoho-verification=zb67925928.zmverify.zoho.com`                                                                                                                                                                                             |
+| `ZOHO_DKIM_CNAME_VALUE`   | `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC5RhRVODJ4sDn2cNeA93oLJ5uK77h1lbXi9gdjzr15NN+BbYCXpIVYyUT75X8/KH/qe0QqCeZNveQ96wsvmSLIEflhz3MfmuwP8Wa4RH1bNdV6lL63tosMpl3n/imav5fu0W5WNtdhnHI2Dox7bOOE625Jr70NQ/kLxdx73aDS9wIDAQAB` |
+
+**Secret `AWS_ROLE_ARN`** (usado por `deploy.yml`) — dentro de cada Environment, `Environment secrets → Add secret`:
+
+- `dev` → `AWS_ROLE_ARN` = `<deploy-role-arn-dev>` (del paso 1)
+- `prod` → `AWS_ROLE_ARN` = `<deploy-role-arn-prod>` (del paso 2)
+
+**Variables y secret a nivel de repositorio** — `Settings → Secrets and variables → Actions` (pestañas "Variables" y "Secrets", **no** dentro de un Environment). Los usa `terraform-plan.yml`, que corre en Pull Requests y por eso no puede depender de un Environment:
+
+| Variable             | Valor                         |
+| -------------------- | ----------------------------- |
+| `PROJECT_NAME`       | `everywhere-travel`           |
+| `AWS_REGION`         | `us-east-2`                   |
+| `DEV_DOMAIN_NAME`    | `dev.everywheretravel.online` |
+| `DEV_ALERT_EMAIL`    | `ti@everywheretravel.online`  |
+| `DEV_DB_NAME`        | `everywhere_travel`           |
+| `DEV_DB_USERNAME`    | `app_user`                    |
+| `DEV_ECS_APP_PORT`   | `8080`                        |
+| `DEV_LAMBDA_MEMORY`  | `256`                         |
+| `DEV_LAMBDA_TIMEOUT` | `30`                          |
+| `DEV_VPC_CIDR`       | `10.0.0.0/16`                 |
+
+Secret: `AWS_PLAN_ROLE_ARN` = `<plan-role-arn>` (del paso 1).
