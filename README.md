@@ -405,3 +405,31 @@ Environment `prod` (mismas claves que dev, mas las dos de Zoho, con estos valore
 | `DEV_VPC_CIDR`       | `10.0.0.0/16`                 |
 
 Secret: `AWS_PLAN_ROLE_ARN` = `<plan-role-arn>` (del paso 1).
+
+### 4. Branch protection en `main` y `dev` (manual, desde la UI)
+
+`Settings → Branches → Add branch protection rule`. Repetir para `main` y para `dev`, con:
+
+- **Branch name pattern**: `main` (y despues `dev`).
+- **Require status checks to pass before merging** (tildado), agregando como checks requeridos: `terraform-validate` y `ansible-check`.
+- **Require a pull request before merging**, con **required approving reviews = 1**.
+
+> Los checks `backend-test`/`frontend-test`/`lambda-build` no se agregan como requeridos a propósito: en `ci.yml` corren condicionados a `paths` (via `dorny/paths-filter`), y GitHub marca como "esperando" para siempre un required check que nunca llega a dispararse en un PR que no toca esos paths. Ajustá esta lista si cambiás esa lógica.
+
+### Bootstrap del primer usuario (Cognito + BD), por ambiente
+
+Reemplaza al viejo workflow `demo-user.yml` y al playbook `create_cognito_demo_user.yml` (eliminados). Antes creaban el usuario en Cognito reusando el rol IAM amplio del deploy (`AWS_ROLE_ARN`), alcanzable por cualquiera con permiso de escritura en el repo via `workflow_dispatch` — sin depender de tener acceso a la consola de AWS. Se decidió sacar esa vía de la automatización de CI/CD y hacerla a mano, una sola vez por ambiente nuevo (dev/prod recién creado), directamente en la consola:
+
+1. **AWS Console → Cognito → User pools → `everywhere-travel-<env>-user-pool` → Users → Create user.**
+   - Username / email: `admin@everywheretravel.online` (tiene que coincidir exacto con el email de la fila semilla en `usuarios`, o el login va a fallar por no encontrar la fila espejo). Ese email lo fija `V2__seed_initial_data.sql` vía Flyway.
+   - Dejar que Cognito envíe la invitación por email (no marcar "Set a password", no usar `Suppress` — mismo flujo de invitación que usa el endpoint `POST /api/v1/users`).
+2. La persona dueña de ese correo entra con la contraseña temporal y Cognito la obliga a cambiarla en el primer login (`FORCE_CHANGE_PASSWORD`).
+3. La fila en `usuarios` (rol `ADMIN`) ya existe desde que el backend arrancó por primera vez contra esa BD — la crea `V2__seed_initial_data.sql` vía Flyway, no hace falta ningún paso adicional de este lado.
+4. De ahí en adelante, cualquier usuario nuevo se da de alta autenticado como ese ADMIN (o un usuario `SISTEMAS`) contra `POST /api/v1/users` — no vuelve a hacer falta tocar la consola de Cognito ni ningún workflow.
+
+Quien haga este paso necesita permiso de IAM para administrar ese user pool específico de Cognito (no acceso de escritura al repo de GitHub).
+
+### Notas
+
+- Los roles IAM (`iac/modules/github-oidc`) tienen permisos amplios por servicio AWS, acotados por el prefijo `everywhere-travel-*` donde el ARN lo permite. No es least-privilege exhaustivo — es el nivel acordado para este proyecto de curso.
+- Si en algún momento hay que rotar/recrear el OIDC provider, solo se puede hacer desde el workspace que tiene `create_provider = true` (hoy: `dev`, ver `iac/main.tf`).
