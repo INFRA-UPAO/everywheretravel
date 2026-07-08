@@ -26,3 +26,20 @@ jobs:
           aws-region: us-east-2
 
       - uses: hashicorp/setup-terraform@v3
+
+      - name: Generar iac/tfvars/dev.tfvars
+        working-directory: iac
+        run: |
+          mkdir -p tfvars
+          cat > tfvars/dev.tfvars <<EOF
+          project_name   = "${{ vars.PROJECT_NAME }}"
+          aws_region     = "${{ vars.AWS_REGION }}"
+          domain_name    = "${{ vars.DEV_DOMAIN_NAME }}"
+          alert_email    = "${{ vars.DEV_ALERT_EMAIL }}"
+          db_name        = "${{ vars.DEV_DB_NAME }}"
+          db_username    = "${{ vars.DEV_DB_USERNAME }}"
+          ecs_app_port   = ${{ vars.DEV_ECS_APP_PORT }}
+          lambda_memory  = ${{ vars.DEV_LAMBDA_MEMORY }}
+          lambda_timeout = ${{ vars.DEV_LAMBDA_TIMEOUT }}
+          vpc_cidr       = "${{ vars.DEV_VPC_CIDR }}"
+          EOF
