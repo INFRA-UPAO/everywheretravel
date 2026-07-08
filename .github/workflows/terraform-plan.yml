@@ -14,3 +14,15 @@ jobs:
   plan:
     name: terraform plan (workspace dev)
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rol de solo lectura (repo secret, no de Environment): un PR nunca debe
+      # poder asumir un rol con permisos de escritura ni leer secrets de dev/prod.
+      - name: Configure AWS credentials (read-only plan role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - uses: hashicorp/setup-terraform@v3
