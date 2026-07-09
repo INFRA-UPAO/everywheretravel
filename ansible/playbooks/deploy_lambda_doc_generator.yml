@@ -25,7 +25,11 @@
 
     - name: Package Lambda source
       ansible.builtin.command:
-        cmd: python3 {{ repo_root }}/ansible/scripts/package_lambda.py {{ lambda_dir }} {{ lambda_zip }}
+        argv:
+          - python3
+          - "{{ repo_root }}/ansible/scripts/package_lambda.py"
+          - "{{ lambda_dir }}"
+          - "{{ lambda_zip }}"
         chdir: "{{ repo_root }}"
 
     - name: Get current Lambda function configuration
