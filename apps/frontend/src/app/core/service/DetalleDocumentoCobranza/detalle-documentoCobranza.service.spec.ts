@@ -1,12 +1,14 @@
 /* tslint:disable:no-unused-variable */
 
-import { TestBed, async, inject } from '@angular/core/testing';
+import { TestBed, inject } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { DetalleDocumentoCobranzaService } from './detalle-documentoCobranza.service';
 
 describe('Service: DetalleDocumentoCobranza', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [DetalleDocumentoCobranzaService]
+      providers: [DetalleDocumentoCobranzaService, provideHttpClient(), provideHttpClientTesting()]
     });
   });
 

@@ -1,13 +1,17 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { Exchange } from './exchange.service';
+import { ExchangeService } from './exchange.service';
 
-describe('Exchange', () => {
-  let service: Exchange;
+describe('ExchangeService', () => {
+  let service: ExchangeService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(Exchange);
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    });
+    service = TestBed.inject(ExchangeService);
   });
 
   it('should be created', () => {

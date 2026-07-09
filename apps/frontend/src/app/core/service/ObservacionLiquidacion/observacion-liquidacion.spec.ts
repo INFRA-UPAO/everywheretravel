@@ -1,13 +1,17 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { ObservacionLiquidacion } from './observacion-liquidacion';
+import { ObservacionLiquidacionService } from './observacion-liquidacion';
 
-describe('ObservacionLiquidacion', () => {
-  let service: ObservacionLiquidacion;
+describe('ObservacionLiquidacionService', () => {
+  let service: ObservacionLiquidacionService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(ObservacionLiquidacion);
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    });
+    service = TestBed.inject(ObservacionLiquidacionService);
   });
 
   it('should be created', () => {

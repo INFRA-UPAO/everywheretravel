@@ -11,7 +11,7 @@ describe('EstadisticaComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [ EstadisticaComponent ]
+      imports: [ EstadisticaComponent ]
     })
     .compileComponents();
   }));
