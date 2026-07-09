@@ -44,10 +44,13 @@ data "aws_iam_policy_document" "deploy_broad_services" {
     effect = "Allow"
     actions = [
       "ec2:*",
+      "elasticloadbalancing:*",
       "rds:*",
       "ecs:*",
       "ecr:*",
       "lambda:*",
+      "cloudformation:*",
+      "serverlessrepo:*",
       "sqs:*",
       "sns:*",
       "secretsmanager:*",
@@ -64,8 +67,6 @@ data "aws_iam_policy_document" "deploy_broad_services" {
       "waf:*",
       "waf-regional:*",
       "route53:*",
-      "cloudformation:*",
-      "serverlessrepo:*",
     ]
     resources = ["*"]
   }
