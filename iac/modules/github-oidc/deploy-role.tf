@@ -64,6 +64,8 @@ data "aws_iam_policy_document" "deploy_broad_services" {
       "waf:*",
       "waf-regional:*",
       "route53:*",
+      "cloudformation:*",
+      "serverlessrepo:*",
     ]
     resources = ["*"]
   }
@@ -99,6 +101,7 @@ data "aws_iam_policy_document" "deploy_permissions" {
     actions = [
       "s3:GetObject",
       "s3:PutObject",
+      "s3:DeleteObject",
       "s3:ListBucket",
     ]
     resources = [
@@ -152,6 +155,7 @@ data "aws_iam_policy_document" "deploy_permissions" {
       "kms:DescribeKey",
       "kms:ListKeys",
       "kms:ListAliases",
+      "kms:ListResourceTags",
       "kms:CreateAlias",
       "kms:DeleteAlias",
       "kms:UpdateAlias",
