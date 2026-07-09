@@ -48,6 +48,7 @@ data "aws_iam_policy_document" "deploy_broad_services" {
       "rds:*",
       "ecs:*",
       "ecr:*",
+      "application-autoscaling:*",
       "lambda:*",
       "cloudformation:*",
       "serverlessrepo:*",
