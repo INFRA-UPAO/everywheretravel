@@ -89,6 +89,23 @@ jobs:
       - name: ng test (headless)
         working-directory: apps/frontend
         run: npx ng test --watch=false --browsers=ChromeHeadless
+      - name: Generate environment.prod.ts (CI placeholder)
+        working-directory: apps/frontend
+        run: |
+          cat > src/environments/environment.prod.ts <<'EOF'
+          export const environment = {
+              production: true,
+              baseURL: 'http://localhost:8080/api/v1',
+              cognito: {
+                  authority: '',
+                  clientId: '',
+                  redirectUri: 'http://localhost:4200/callback',
+                  logoutUri: 'http://localhost:4200/logout',
+                  logoutEndpoint: '',
+                  scope: 'openid email profile'
+              }
+          };
+          EOF
       - name: ng build
         working-directory: apps/frontend
         run: npm run build
