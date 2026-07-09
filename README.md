@@ -305,3 +305,131 @@ ansible/
 └── scripts/      # Utilidades usadas por los playbooks
 ```
 
+Agregar al final de README.md (después de "## Estructura del proyecto")
+
+---
+
+## CI/CD con GitHub Actions (bootstrap manual, una sola vez)
+
+Esta seccion deja operativo el pipeline de `.github/workflows/`. Es **estado real en AWS/GitHub**, no código versionado, así que se hace a mano (con SSO local ya configurado) y no lo ejecuta el pipeline.
+
+Orden obligatorio: **1 → 2 → 3 → 4**. El paso 2 (workspace `prod`) depende del OIDC provider que crea el paso 1 (workspace `dev`).
+
+### 1. Terraform apply en workspace `dev`
+
+Crea el OIDC provider de GitHub Actions (único por cuenta AWS), el rol de deploy de dev y el rol de solo lectura para `terraform plan` en PRs.
+
+\`\`\`powershell
+cd iac
+terraform init
+terraform workspace select dev
+terraform apply -var-file="tfvars/dev.tfvars"
+terraform output -raw github_deploy_role_arn
+terraform output -raw github_plan_role_arn
+cd ..
+\`\`\`
+
+Guarda los dos ARNs que imprime, se usan en el paso 3.
+
+### 2. Terraform apply en workspace `prod`
+
+Crea el rol de deploy de prod (reutiliza el OIDC provider ya creado en dev, por eso el orden importa).
+
+\`\`\`powershell
+cd iac
+terraform workspace select prod
+terraform apply -var-file="tfvars/prod.tfvars"
+terraform output -raw github_deploy_role_arn
+cd ..
+\`\`\`
+
+### 3. GitHub Environments, variables y secrets (manual, desde la UI)
+
+**Crear los Environments** — `Settings → Environments → New environment`:
+
+- **`dev`**: crealo sin reglas de protección (el deploy a dev es automático en cada push a la rama `dev`).
+- **`prod`**: crealo y marcá **"Required reviewers"**, agregando a los colaboradores del repo que deban aprobar cada deploy a producción.
+
+**Variables por Environment** — dentro de cada Environment, `Add variable` (no son secretas, vienen de `iac/tfvars/*.tfvars`):
+
+Environment `dev`:
+
+| Variable         | Valor                         |
+| ---------------- | ----------------------------- |
+| `PROJECT_NAME`   | `everywhere-travel`           |
+| `AWS_REGION`     | `us-east-2`                   |
+| `DOMAIN_NAME`    | `dev.everywheretravel.online` |
+| `ALERT_EMAIL`    | `ti@everywheretravel.online`  |
+| `DB_NAME`        | `everywhere_travel`           |
+| `DB_USERNAME`    | `app_user`                    |
+| `ECS_APP_PORT`   | `8080`                        |
+| `LAMBDA_MEMORY`  | `256`                         |
+| `LAMBDA_TIMEOUT` | `30`                          |
+| `VPC_CIDR`       | `10.0.0.0/16`                 |
+
+Environment `prod` (mismas claves que dev, mas las dos de Zoho, con estos valores):
+
+| Variable                  | Valor                                                                                                                                                                                                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PROJECT_NAME`            | `everywhere-travel`                                                                                                                                                                                                                          |
+| `AWS_REGION`              | `us-east-2`                                                                                                                                                                                                                                  |
+| `DOMAIN_NAME`             | `everywheretravel.online`                                                                                                                                                                                                                    |
+| `ALERT_EMAIL`             | `ti@everywheretravel.online`                                                                                                                                                                                                                 |
+| `DB_NAME`                 | `everywhere_travel`                                                                                                                                                                                                                          |
+| `DB_USERNAME`             | `app_user`                                                                                                                                                                                                                                   |
+| `ECS_APP_PORT`            | `8080`                                                                                                                                                                                                                                       |
+| `LAMBDA_MEMORY`           | `256`                                                                                                                                                                                                                                        |
+| `LAMBDA_TIMEOUT`          | `30`                                                                                                                                                                                                                                         |
+| `VPC_CIDR`                | `10.0.0.0/16`                                                                                                                                                                                                                                |
+| `ZOHO_VERIFICATION_TOKEN` | `zoho-verification=zb67925928.zmverify.zoho.com`                                                                                                                                                                                             |
+| `ZOHO_DKIM_CNAME_VALUE`   | `v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC5RhRVODJ4sDn2cNeA93oLJ5uK77h1lbXi9gdjzr15NN+BbYCXpIVYyUT75X8/KH/qe0QqCeZNveQ96wsvmSLIEflhz3MfmuwP8Wa4RH1bNdV6lL63tosMpl3n/imav5fu0W5WNtdhnHI2Dox7bOOE625Jr70NQ/kLxdx73aDS9wIDAQAB` |
+
+**Secret `AWS_ROLE_ARN`** (usado por `deploy.yml`) — dentro de cada Environment, `Environment secrets → Add secret`:
+
+- `dev` → `AWS_ROLE_ARN` = `<deploy-role-arn-dev>` (del paso 1)
+- `prod` → `AWS_ROLE_ARN` = `<deploy-role-arn-prod>` (del paso 2)
+
+**Variables y secret a nivel de repositorio** — `Settings → Secrets and variables → Actions` (pestañas "Variables" y "Secrets", **no** dentro de un Environment). Los usa `terraform-plan.yml`, que corre en Pull Requests y por eso no puede depender de un Environment:
+
+| Variable             | Valor                         |
+| -------------------- | ----------------------------- |
+| `PROJECT_NAME`       | `everywhere-travel`           |
+| `AWS_REGION`         | `us-east-2`                   |
+| `DEV_DOMAIN_NAME`    | `dev.everywheretravel.online` |
+| `DEV_ALERT_EMAIL`    | `ti@everywheretravel.online`  |
+| `DEV_DB_NAME`        | `everywhere_travel`           |
+| `DEV_DB_USERNAME`    | `app_user`                    |
+| `DEV_ECS_APP_PORT`   | `8080`                        |
+| `DEV_LAMBDA_MEMORY`  | `256`                         |
+| `DEV_LAMBDA_TIMEOUT` | `30`                          |
+| `DEV_VPC_CIDR`       | `10.0.0.0/16`                 |
+
+Secret: `AWS_PLAN_ROLE_ARN` = `<plan-role-arn>` (del paso 1).
+
+### 4. Branch protection en `main` y `dev` (manual, desde la UI)
+
+`Settings → Branches → Add branch protection rule`. Repetir para `main` y para `dev`, con:
+
+- **Branch name pattern**: `main` (y despues `dev`).
+- **Require status checks to pass before merging** (tildado), agregando como checks requeridos: `terraform-validate` y `ansible-check`.
+- **Require a pull request before merging**, con **required approving reviews = 1**.
+
+> Los checks `backend-test`/`frontend-test`/`lambda-build` no se agregan como requeridos a propósito: en `ci.yml` corren condicionados a `paths` (via `dorny/paths-filter`), y GitHub marca como "esperando" para siempre un required check que nunca llega a dispararse en un PR que no toca esos paths. Ajustá esta lista si cambiás esa lógica.
+
+### Bootstrap del primer usuario (Cognito + BD), por ambiente
+
+Reemplaza al viejo workflow `demo-user.yml` y al playbook `create_cognito_demo_user.yml` (eliminados). Antes creaban el usuario en Cognito reusando el rol IAM amplio del deploy (`AWS_ROLE_ARN`), alcanzable por cualquiera con permiso de escritura en el repo via `workflow_dispatch` — sin depender de tener acceso a la consola de AWS. Se decidió sacar esa vía de la automatización de CI/CD y hacerla a mano, una sola vez por ambiente nuevo (dev/prod recién creado), directamente en la consola:
+
+1. **AWS Console → Cognito → User pools → `everywhere-travel-<env>-user-pool` → Users → Create user.**
+   - Username / email: `admin@everywheretravel.online` (tiene que coincidir exacto con el email de la fila semilla en `usuarios`, o el login va a fallar por no encontrar la fila espejo). Ese email lo fija `V2__seed_initial_data.sql` vía Flyway.
+   - Dejar que Cognito envíe la invitación por email (no marcar "Set a password", no usar `Suppress` — mismo flujo de invitación que usa el endpoint `POST /api/v1/users`).
+2. La persona dueña de ese correo entra con la contraseña temporal y Cognito la obliga a cambiarla en el primer login (`FORCE_CHANGE_PASSWORD`).
+3. La fila en `usuarios` (rol `ADMIN`) ya existe desde que el backend arrancó por primera vez contra esa BD — la crea `V2__seed_initial_data.sql` vía Flyway, no hace falta ningún paso adicional de este lado.
+4. De ahí en adelante, cualquier usuario nuevo se da de alta autenticado como ese ADMIN (o un usuario `SISTEMAS`) contra `POST /api/v1/users` — no vuelve a hacer falta tocar la consola de Cognito ni ningún workflow.
+
+Quien haga este paso necesita permiso de IAM para administrar ese user pool específico de Cognito (no acceso de escritura al repo de GitHub).
+
+### Notas
+
+- Los roles IAM (`iac/modules/github-oidc`) tienen permisos amplios por servicio AWS, acotados por el prefijo `everywhere-travel-*` donde el ARN lo permite. No es least-privilege exhaustivo — es el nivel acordado para este proyecto de curso.
+- Si en algún momento hay que rotar/recrear el OIDC provider, solo se puede hacer desde el workspace que tiene `create_provider = true` (hoy: `dev`, ver `iac/main.tf`).

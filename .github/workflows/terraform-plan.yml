@@ -1,0 +1,79 @@
+name: Terraform Plan (PR)
+
+on:
+  pull_request:
+    paths:
+      - "iac/**"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    name: terraform plan (workspace dev)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Rol de solo lectura (repo secret, no de Environment): un PR nunca debe
+      # poder asumir un rol con permisos de escritura ni leer secrets de dev/prod.
+      - name: Configure AWS credentials (read-only plan role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_PLAN_ROLE_ARN }}
+          aws-region: us-east-2
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Generar iac/tfvars/dev.tfvars
+        working-directory: iac
+        run: |
+          mkdir -p tfvars
+          cat > tfvars/dev.tfvars <<EOF
+          project_name   = "${{ vars.PROJECT_NAME }}"
+          aws_region     = "${{ vars.AWS_REGION }}"
+          domain_name    = "${{ vars.DEV_DOMAIN_NAME }}"
+          alert_email    = "${{ vars.DEV_ALERT_EMAIL }}"
+          db_name        = "${{ vars.DEV_DB_NAME }}"
+          db_username    = "${{ vars.DEV_DB_USERNAME }}"
+          ecs_app_port   = ${{ vars.DEV_ECS_APP_PORT }}
+          lambda_memory  = ${{ vars.DEV_LAMBDA_MEMORY }}
+          lambda_timeout = ${{ vars.DEV_LAMBDA_TIMEOUT }}
+          vpc_cidr       = "${{ vars.DEV_VPC_CIDR }}"
+          EOF
+      
+      - name: terraform init
+        working-directory: iac
+        run: terraform init
+
+      - name: terraform workspace select dev
+        working-directory: iac
+        run: terraform workspace select dev
+
+      - name: terraform plan
+        id: plan
+        working-directory: iac
+        run: |
+          terraform plan -input=false -var-file=tfvars/dev.tfvars -no-color \
+            2>&1 | tee /tmp/plan-output.txt
+        continue-on-error: true
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('/tmp/plan-output.txt', 'utf8').slice(-60000);
+            const body = `#### Terraform Plan (workspace: dev)\n<details><summary>Ver plan</summary>\n\n\`\`\`\n${plan}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      - name: Fail job if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
