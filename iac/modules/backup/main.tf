@@ -1,9 +1,3 @@
-data "aws_caller_identity" "current" {}
-
-locals {
-  account_id = data.aws_caller_identity.current.account_id
-}
-
 resource "aws_backup_vault" "primary" {
   name        = "${var.prefix}-backup-vault"
   kms_key_arn = var.kms_backups_arn

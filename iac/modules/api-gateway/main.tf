@@ -1,9 +1,3 @@
-data "aws_region" "current" {}
-
-locals {
-  region = data.aws_region.current.region
-}
-
 # CW LOG GROUP — ACCESS LOGS
 #FIX CKV_AWS_338	aws_cloudwatch_log_group.api_access_logs	Retención de logs (mínimo 365)
 resource "aws_cloudwatch_log_group" "api_access_logs" {
