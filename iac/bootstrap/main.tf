@@ -14,8 +14,8 @@ provider "aws" {
   region = "us-east-2"
 }
 
-# checkov:skip=CKV2_AWS_62: Bucket de state management no requiere event notifications
 resource "aws_s3_bucket" "tfstate" {
+  #checkov:skip=CKV2_AWS_62: Bucket de state management no requiere event notifications
   #checkov:skip=CKV_AWS_144:Cross-region replication no aplica para bucket de tfstate con versionado habilitado
   #checkov:skip=CKV2_AWS_62:Event notifications no requeridas para bucket de gestion de estado
   #checkov:skip=CKV_AWS_18:Access logging omitido, no existe bucket de logs en bootstrap
@@ -128,9 +128,9 @@ resource "aws_iam_role" "plan" {
   }
 }
 
-# checkov:skip=CKV_AWS_108:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
-# checkov:skip=CKV_AWS_356:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
 data "aws_iam_policy_document" "plan_permissions" {
+  #checkov:skip=CKV_AWS_108:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
+  #checkov:skip=CKV_AWS_356:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
   statement {
     sid    = "ReadOnlyForPlan"
     effect = "Allow"
@@ -190,11 +190,6 @@ resource "aws_iam_role_policies_exclusive" "plan" {
   policy_names = [aws_iam_role_policy.plan.name]
 }
 
-# Roles de deploy de cada entorno (dev/prod). Viven aqui, no en el state de
-# cada workspace, para que un "destroy" completo de dev o prod nunca se
-# lleve por delante el rol que su propio pipeline de CI necesita para volver
-# a autenticarse — de lo contrario queda un candado: la CI no puede recrear
-# el rol que ella misma necesita para poder correr.
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -241,13 +236,13 @@ resource "aws_iam_role" "deploy" {
   }
 }
 
-# checkov:skip=CKV_AWS_107:Amplio por servicio, acordado para el proyecto
-# checkov:skip=CKV_AWS_108:Amplio por servicio, acordado para el proyecto
-# checkov:skip=CKV_AWS_109:Amplio por servicio, acordado para el proyecto
-# checkov:skip=CKV_AWS_110:Amplio por servicio, acordado para el proyecto
-# checkov:skip=CKV_AWS_111:Amplio por servicio, acordado para el proyecto
-# checkov:skip=CKV_AWS_356:Amplio por servicio, acordado para el proyecto
 data "aws_iam_policy_document" "deploy_broad_services" {
+  #checkov:skip=CKV_AWS_107:Amplio por servicio, acordado para el proyecto
+  #checkov:skip=CKV_AWS_108:Amplio por servicio, acordado para el proyecto
+  #checkov:skip=CKV_AWS_109:Amplio por servicio, acordado para el proyecto
+  #checkov:skip=CKV_AWS_110:Amplio por servicio, acordado para el proyecto
+  #checkov:skip=CKV_AWS_111:Amplio por servicio, acordado para el proyecto
+  #checkov:skip=CKV_AWS_356:Amplio por servicio, acordado para el proyecto
   statement {
     sid    = "BroadServiceAccess"
     effect = "Allow"
@@ -290,10 +285,10 @@ resource "aws_iam_role_policy" "deploy_broad_services" {
   policy = data.aws_iam_policy_document.deploy_broad_services.json
 }
 
-# checkov:skip=CKV_AWS_109:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
-# checkov:skip=CKV_AWS_111:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
-# checkov:skip=CKV_AWS_356:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
 data "aws_iam_policy_document" "deploy_permissions" {
+  #checkov:skip=CKV_AWS_109:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
+  #checkov:skip=CKV_AWS_111:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
+  #checkov:skip=CKV_AWS_356:KMS/Route53/STS sin ARN previsible por nombre, resto de la policy ya esta acotado por recurso
   for_each = toset(local.environments)
 
   statement {
