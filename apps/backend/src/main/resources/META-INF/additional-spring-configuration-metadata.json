@@ -1,0 +1,14 @@
+{
+  "properties": [
+    {
+      "name": "jwt.validity-in-seconds",
+      "type": "java.lang.String",
+      "description": "Time in seconds for which the JWT token is valid"
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "description": "The secret key used to sign the JWT token"
+    }
+  ]
+}

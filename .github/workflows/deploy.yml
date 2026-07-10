@@ -1,0 +1,162 @@
+name: Deploy (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "dev o prod. Debe coincidir con el GitHub Environment y el workspace de Terraform."
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform-apply:
+    name: Terraform apply (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Generar iac/tfvars/${{ inputs.environment }}.tfvars
+        working-directory: iac
+        run: |
+          mkdir -p tfvars
+          cat > tfvars/${{ inputs.environment }}.tfvars <<EOF
+          project_name   = "${{ vars.PROJECT_NAME }}"
+          aws_region     = "${{ vars.AWS_REGION }}"
+          domain_name    = "${{ vars.DOMAIN_NAME }}"
+          alert_email    = "${{ vars.ALERT_EMAIL }}"
+          db_name        = "${{ vars.DB_NAME }}"
+          db_username    = "${{ vars.DB_USERNAME }}"
+          ecs_app_port   = ${{ vars.ECS_APP_PORT }}
+          lambda_memory  = ${{ vars.LAMBDA_MEMORY }}
+          lambda_timeout = ${{ vars.LAMBDA_TIMEOUT }}
+          vpc_cidr       = "${{ vars.VPC_CIDR }}"
+          zoho_verification_token = "${{ vars.ZOHO_VERIFICATION_TOKEN }}"
+          zoho_dkim_cname_value   = "${{ vars.ZOHO_DKIM_CNAME_VALUE }}"
+          EOF
+
+      - name: terraform init
+        working-directory: iac
+        run: terraform init
+
+      - name: terraform workspace select/create
+        working-directory: iac
+        run: terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }}
+
+      - name: terraform apply
+        working-directory: iac
+        run: terraform apply -auto-approve -input=false -var-file=tfvars/${{ inputs.environment }}.tfvars
+
+      - name: terraform output -json
+        working-directory: iac
+        run: terraform output -json > ../ansible/terraform-output.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform-output-${{ inputs.environment }}
+          path: ansible/terraform-output.json
+          retention-days: 1
+
+  deploy-backend:
+    name: Ansible - backend ECS
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: terraform-output-${{ inputs.environment }}
+          path: ansible
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Ansible + colecciones AWS
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: ansible-playbook deploy_backend_ecs.yml
+        run: |
+          ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_backend_ecs.yml \
+            -e image_tag=${{ github.sha }}
+
+  deploy-frontend:
+    name: Ansible - frontend Angular
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: terraform-output-${{ inputs.environment }}
+          path: ansible
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Ansible + colecciones AWS
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: ansible-playbook deploy_frontend.yml
+        run: |
+          ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_frontend.yml \
+            -e env=${{ inputs.environment }}
+
+  deploy-lambda:
+    name: Ansible - lambda-doc-generator
+    needs: terraform-apply
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: terraform-output-${{ inputs.environment }}
+          path: ansible
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Ansible + colecciones AWS
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: ansible-playbook deploy_lambda_doc_generator.yml
+        run: |
+          ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/deploy_lambda_doc_generator.yml \
+            -e env=${{ inputs.environment }}

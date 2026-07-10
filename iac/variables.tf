@@ -21,6 +21,12 @@ variable "domain_name" {
   type        = string
 }
 
+variable "route53_manage_hosted_zone" {
+  description = "Si es true, Terraform crea/administra la hosted zone. Si es false, solo usa una hosted zone existente."
+  type        = bool
+  default     = false
+}
+
 variable "alert_email" {
   description = "Email para recibir alertas de infraestructura"
   type        = string
@@ -44,6 +50,12 @@ variable "ecs_app_port" {
   default     = 8080
 }
 
+variable "ecr_image_tag" {
+  description = "Tag de la imagen Docker del backend que ECS debe desplegar"
+  type        = string
+  default     = "initial"
+}
+
 variable "lambda_memory" {
   description = "Memoria en MB para Lambda"
   type        = number
@@ -54,4 +66,22 @@ variable "lambda_timeout" {
   description = "Timeout en segundos para Lambda"
   type        = number
   default     = 30
+}
+
+variable "lambda_reserved_concurrency" {
+  description = "Límite opcional de ejecuciones concurrentes para lambda-doc-generator. null desactiva la reserva."
+  type        = number
+  default     = null
+}
+
+variable "zoho_verification_token" {
+  description = "Token TXT de verificación de dominio Zoho"
+  type        = string
+  default     = ""
+}
+
+variable "zoho_dkim_cname_value" {
+  description = "Valor CNAME para DKIM de Zoho"
+  type        = string
+  default     = ""
 }

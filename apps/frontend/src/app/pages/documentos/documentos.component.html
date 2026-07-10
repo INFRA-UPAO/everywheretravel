@@ -1,0 +1,278 @@
+<!-- Layout con Sidebar -->
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100">
+  <!-- Sidebar Component -->
+  <app-sidebar [isCollapsed]="sidebarCollapsed" [menuItems]="sidebarMenuItems" (itemClick)="onSidebarItemClick($event)"
+    (toggleSidebar)="onToggleSidebar()">
+  </app-sidebar>
+
+  <!-- Main Content Area -->
+  <div class="transition-all duration-300" [class.ml-72]="!sidebarCollapsed" [class.ml-20]="sidebarCollapsed">
+
+    <!-- Header Section Documentos con estilo de Productos -->
+    <header
+      class="bg-gradient-to-r from-everywhere-primary to-everywhere-secondary text-white relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-white/20 transform skew-x-12">
+      </div>
+
+      <div class="max-w-full mx-auto px-6 py-6 relative z-10">
+        <!-- Mobile Menu Button -->
+        <button (click)="onToggleSidebar()"
+          class="lg:hidden fixed top-4 left-4 z-50 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 hover:bg-white/30 transition-all">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+
+        <div class="flex flex-col lg:flex-row justify-between items-start gap-8">
+          <!-- Header Info -->
+          <div class="flex-1">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                <i class="fas fa-file-alt text-2xl"></i>
+              </div>
+              <div>
+                <h1 class="text-4xl font-bold">Gestión de Documentos</h1>
+                <p class="text-xl opacity-90 mt-2">Administra y organiza todos los tipos de documentos del sistema</p>
+              </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8" *ngIf="!loading">
+              <div
+                class="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300 hover:-translate-y-1">
+                <div class="w-14 h-14 bg-everywhere-blue rounded-xl flex items-center justify-center">
+                  <i class="fas fa-file-alt text-white text-xl"></i>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold">{{ totalDocumentos }}</div>
+                  <div class="text-sm opacity-90 uppercase font-medium tracking-wide">
+                    Documento{{ totalDocumentos === 1 ? '' : 's' }} Total{{ totalDocumentos === 1 ? '' : 'es' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="z-10">
+            <button (click)="abrirModalCrear()" [disabled]="loading"
+              class="bg-white text-red-600 hover:bg-gray-50 px-8 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 min-w-48 justify-center relative overflow-hidden group">
+              <div
+                class="absolute inset-0 bg-gradient-to-r from-transparent via-red-50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700">
+              </div>
+              <i class="fas fa-plus text-lg"></i>
+              <span>Nuevo Tipo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- Main Content -->
+    <main class="max-w-full mx-auto px-6 py-6">
+      <!-- ===== NUEVO: DataTable Component ===== -->
+      <app-data-table [config]="tableConfig" [isLoading]="isLoading">
+      </app-data-table>
+    </main>
+
+  </div>
+</div>
+
+<!-- Modal para crear/editar tipo de documento -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5"
+  *ngIf="mostrarModalCrear" (click)="cerrarModal()">
+  <div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+    (click)="$event.stopPropagation()">
+
+    <!-- Modal Header -->
+    <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-6 rounded-t-3xl">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold">{{ editandoDocumento ? 'Editar' : 'Crear Nuevo' }} Tipo de Documento</h2>
+        <button (click)="cerrarModal()"
+          class="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Form Content -->
+    <form [formGroup]="documentoForm" (ngSubmit)="guardarDocumento()" class="p-8 space-y-6">
+
+      <!-- Tipo -->
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-3">
+          <i class="fas fa-tag mr-2 text-red-600"></i>Tipo de Documento *
+        </label>
+        <div class="relative">
+          <input type="text" formControlName="tipo"
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
+            placeholder="Ej: Pasaporte, DNI, Cédula, etc.">
+          <div class="absolute inset-y-0 right-0 flex items-center justify-center px-3 pointer-events-none">
+            <i class="fas fa-file-alt text-gray-400"></i>
+          </div>
+          <div *ngIf="documentoForm.get('tipo')?.invalid && documentoForm.get('tipo')?.touched"
+            class="absolute -bottom-6 left-0 text-red-500 text-sm">
+            <span *ngIf="documentoForm.get('tipo')?.errors?.['required']">
+              El tipo es obligatorio
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Descripción -->
+      <div>
+        <label class="block text-sm font-bold text-gray-700 mb-3">
+          <i class="fas fa-align-left mr-2 text-red-600"></i>Descripción
+        </label>
+        <div class="relative">
+          <textarea formControlName="descripcion" rows="3"
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 resize-none"
+            placeholder="Descripción opcional del tipo de documento..."></textarea>
+          <div *ngIf="documentoForm.get('descripcion')?.invalid && documentoForm.get('descripcion')?.touched"
+            class="absolute -bottom-6 left-0 text-red-500 text-sm">
+            <span *ngIf="documentoForm.get('descripcion')?.errors?.['maxlength']">
+              Máximo 500 caracteres
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="flex justify-end gap-4 pt-6 border-t border-gray-200">
+        <button type="button" (click)="cerrarModal()"
+          class="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium">
+          <i class="fas fa-times mr-2"></i>Cancelar
+        </button>
+        <button type="submit" [disabled]="documentoForm.invalid || loading"
+          class="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-lg">
+          <i class="fas fa-spinner fa-spin mr-2" *ngIf="loading"></i>
+          <i class="fas fa-save mr-2" *ngIf="!loading"></i>
+          {{ editandoDocumento ? 'Actualizar' : 'Crear' }} Tipo
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal de confirmación de cambio de estado -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5"
+  *ngIf="mostrarModalConfirmacion" (click)="cerrarModalConfirmacion()">
+  <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full" (click)="$event.stopPropagation()">
+
+    <!-- Modal Header -->
+    <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-6 rounded-t-3xl">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold">
+          Confirmar {{ accionConfirmacion === 'activar' ? 'Activación' : 'Desactivación' }}
+        </h2>
+        <button (click)="cerrarModalConfirmacion()"
+          class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-all duration-200">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="p-8">
+      <div class="text-center mb-6">
+        <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+          [class]="accionConfirmacion === 'activar' ? 'bg-green-100' : 'bg-red-100'">
+          <i
+            [class]="accionConfirmacion === 'activar' ? 'fas fa-check text-green-600 text-2xl' : 'fas fa-times text-red-600 text-2xl'"></i>
+        </div>
+
+        <h3 class="text-xl font-bold text-gray-900 mb-4">
+          ¿{{ accionConfirmacion === 'activar' ? 'Activar' : 'Desactivar' }} este documento?
+        </h3>
+
+        <p class="text-gray-600 mb-6">
+          {{ accionConfirmacion === 'activar'
+          ? 'El documento estará disponible para uso en el sistema.'
+          : 'El documento no estará disponible para uso en el sistema.' }}
+        </p>
+      </div>
+
+      <!-- Module Card Preview -->
+      <div class="mb-6 pointer-events-none" *ngIf="documentoAConfirmar">
+        <div class="transform scale-95">
+          <app-module-card [data]="convertToModuleCardForConfirmation(documentoAConfirmar)"></app-module-card>
+        </div>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="flex gap-4">
+        <button type="button" (click)="cerrarModalConfirmacion()" [disabled]="loading"
+          class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold transition-all duration-300 disabled:opacity-50">
+          Cancelar
+        </button>
+        <button type="button" (click)="confirmarCambioEstado()" [disabled]="loading"
+          [class]="accionConfirmacion === 'activar'
+            ? 'flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-xl disabled:opacity-50'
+            : 'flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 hover:-translate-y-1 shadow-lg hover:shadow-xl disabled:opacity-50'">
+          <i [class]="accionConfirmacion === 'activar' ? 'fas fa-check mr-2' : 'fas fa-ban mr-2'"></i>
+          {{ accionConfirmacion === 'activar' ? 'Activar' : 'Desactivar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de confirmación de eliminación -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5"
+  *ngIf="mostrarModalEliminar" (click)="cerrarModalEliminar()">
+  <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full" (click)="$event.stopPropagation()">
+
+    <!-- Modal Header -->
+    <div class="bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-6 rounded-t-3xl">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-bold">
+          <i class="fas fa-exclamation-triangle mr-3"></i>Confirmar Eliminación
+        </h2>
+        <button (click)="cerrarModalEliminar()"
+          class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="p-8">
+      <div class="text-center mb-8">
+        <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <i class="fas fa-trash-alt text-3xl text-red-600"></i>
+        </div>
+
+        <h3 class="text-xl font-bold text-gray-900 mb-4">
+          ¿Eliminar este tipo de documento?
+        </h3>
+
+        <div *ngIf="documentoAEliminar" class="bg-gray-50 rounded-xl p-4 mb-6">
+          <p class="text-gray-600 text-sm mb-2">Tipo a eliminar:</p>
+          <p class="font-semibold text-gray-900">{{ documentoAEliminar.tipo }}</p>
+          <p class="text-gray-500 text-sm mt-1" *ngIf="documentoAEliminar.descripcion">
+            {{ documentoAEliminar.descripcion }}
+          </p>
+        </div>
+
+        <p class="text-gray-600">
+          Esta acción no se puede deshacer. El tipo de documento será eliminado permanentemente del sistema.
+        </p>
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="flex gap-4">
+        <button type="button" (click)="cerrarModalEliminar()" [disabled]="loading"
+          class="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium disabled:opacity-50">
+          <i class="fas fa-times mr-2"></i>Cancelar
+        </button>
+        <button type="button" (click)="confirmarEliminacionModal()" [disabled]="loading"
+          class="flex-1 px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-200 font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fas fa-spinner fa-spin mr-2" *ngIf="loading"></i>
+          <i class="fas fa-trash-alt mr-2" *ngIf="!loading"></i>
+          {{ loading ? 'Eliminando...' : 'Sí, Eliminar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Error usando el componente compartido -->
+<app-error-modal [show]="mostrarModalError" [data]="errorModalData" [backendError]="backendErrorData"
+  (close)="cerrarModalError()">
+</app-error-modal>

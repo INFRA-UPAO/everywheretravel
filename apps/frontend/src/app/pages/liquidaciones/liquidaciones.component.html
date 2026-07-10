@@ -1,0 +1,410 @@
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100">
+  <!-- Sidebar Component -->
+  <app-sidebar [isCollapsed]="sidebarCollapsed" [menuItems]="sidebarMenuItems" (itemClick)="onSidebarItemClick($event)"
+    (toggleSidebar)="onToggleSidebar()">
+  </app-sidebar>
+
+  <!-- Main Content Area -->
+  <div class="transition-all duration-300" [class.ml-72]="!sidebarCollapsed" [class.ml-20]="sidebarCollapsed">
+    <!-- Messages Section -->
+    <div class="fixed top-4 right-4 z-[9999] space-y-3 max-w-md">
+      <!-- Success Message -->
+      <div *ngIf="showSuccessMessage"
+        class="bg-green-500 text-white px-8 py-5 rounded-xl shadow-2xl flex items-start gap-4 animate-fade-in border-l-4 border-green-300">
+        <i class="fas fa-check-circle text-2xl flex-shrink-0 mt-0.5"></i>
+        <div class="flex-1">
+          <p class="font-semibold text-lg">Éxito</p>
+          <p class="text-sm mt-1">{{ successMessage }}</p>
+        </div>
+        <button (click)="hideMessages()" class="hover:text-green-200 flex-shrink-0">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Error Message -->
+      <div *ngIf="showErrorMessage"
+        class="bg-red-600 text-white px-8 py-6 rounded-xl shadow-2xl flex items-start gap-4 animate-fade-in border-l-4 border-red-300">
+        <i class="fas fa-exclamation-triangle text-3xl flex-shrink-0 mt-1"></i>
+        <div class="flex-1">
+          <p class="font-semibold text-lg">Error</p>
+          <p class="text-sm mt-2 break-words whitespace-pre-wrap">{{ errorMessage }}</p>
+        </div>
+        <button (click)="hideMessages()" class="hover:text-red-200 flex-shrink-0">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Section -->
+    <header
+      class="bg-gradient-to-r from-everywhere-primary to-everywhere-secondary text-white relative overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-white/20 transform skew-x-12">
+      </div>
+
+      <div class="max-w-full mx-auto px-6 py-6 relative z-10">
+        <!-- Mobile Menu Button -->
+        <button (click)="onToggleSidebar()"
+          class="lg:hidden fixed top-4 left-4 z-50 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 hover:bg-white/30 transition-all">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+
+        <div class="flex flex-col lg:flex-row justify-between items-start gap-8">
+          <!-- Header Info -->
+          <div class="flex-1">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
+                <i class="fas fa-credit-card text-2xl"></i>
+              </div>
+              <div>
+                <h1 class="text-4xl font-bold">Gestión de Liquidaciones</h1>
+                <p class="text-xl opacity-90 mt-2">
+                  Administra y procesa todas tus liquidaciones de manera eficiente
+                </p>
+              </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8" *ngIf="!isLoading">
+              <div
+                class="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/20 transition-all duration-300 hover:-translate-y-1">
+                <div class="w-14 h-14 bg-everywhere-blue rounded-xl flex items-center justify-center">
+                  <i class="fas fa-credit-card text-white text-xl"></i>
+                </div>
+                <div>
+                  <div class="text-2xl font-bold">{{ getTotalLiquidaciones() }}</div>
+                  <div class="text-sm opacity-90 uppercase font-medium tracking-wide">
+                    Liquidación{{ getTotalLiquidaciones() === 1 ? '' : 'es' }} Total{{
+                    getTotalLiquidaciones() === 1 ? '' : 'es'
+                    }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Header Action -->
+          <div class="z-10">
+            <button (click)="mostrarFormularioCrear()" [disabled]="isLoading"
+              class="bg-white text-red-600 hover:bg-gray-50 px-8 py-4 rounded-2xl font-bold flex items-center gap-3 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 min-w-48 justify-center relative overflow-hidden group">
+              <div
+                class="absolute inset-0 bg-gradient-to-r from-transparent via-red-50 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700">
+              </div>
+              <i class="fas fa-plus text-lg"></i>
+              <span>Nueva Liquidación</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-full mx-auto px-6 py-6">
+      <app-data-table [config]="tableConfig" [isLoading]="isLoading">
+      </app-data-table>
+    </main>
+  </div>
+</div>
+
+<!-- Loading overlay global -->
+<div *ngIf="isGenerating" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80]">
+  <div class="bg-white rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4">
+    <div class="w-16 h-16 border-4 border-everywhere-primary border-t-transparent rounded-full animate-spin"></div>
+    <p class="text-lg font-semibold text-gray-900">Generando liquidación...</p>
+    <p class="text-sm text-gray-600">Por favor espere</p>
+  </div>
+</div>
+
+<!-- Modal para Ver Liquidación -->
+<div *ngIf="mostrarModalVer" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" (click)="cerrarModalVer()">
+  <div class="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden" (click)="$event.stopPropagation()">
+
+    <!-- Header del Modal -->
+    <div class="bg-gradient-to-r from-everywhere-primary to-everywhere-secondary text-white px-8 py-6">
+      <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold flex items-center gap-3">
+          <i class="fas fa-file-invoice text-2xl"></i>
+          Detalle de Liquidación
+        </h2>
+        <button (click)="cerrarModalVer()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+        <!-- Información básica de la liquidación -->
+        <div class="px-8 py-6 bg-gray-50 border-b">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" *ngIf="liquidacionSeleccionada">
+            <div class="bg-white rounded-lg p-4 shadow-sm">
+              <div class="text-sm text-gray-500 mb-1">Número</div>
+              <div class="text-lg font-semibold text-gray-800">{{ liquidacionSeleccionada.numero || 'N/A' }}</div>
+            </div>
+            <div class="bg-white rounded-lg p-4 shadow-sm">
+              <div class="text-sm text-gray-500 mb-1">Fecha de Compra</div>
+              <div class="text-lg font-semibold text-gray-800">
+                {{ liquidacionSeleccionada.fechaCompra ? (liquidacionSeleccionada.fechaCompra | date:'dd/MM/yyyy') : 'N/A' }}
+              </div>
+            </div>
+            <div class="bg-white rounded-lg p-4 shadow-sm">
+              <div class="text-sm text-gray-500 mb-1">Destino</div>
+              <div class="text-lg font-semibold text-gray-800">{{ liquidacionSeleccionada.destino || 'N/A' }}</div>
+            </div>
+            <div class="bg-white rounded-lg p-4 shadow-sm">
+              <div class="text-sm text-gray-500 mb-1">Número de Pasajeros</div>
+              <div class="text-lg font-semibold text-gray-800">{{ liquidacionSeleccionada.numeroPasajeros || 'N/A' }}</div>
+            </div>
+          </div>
+        </div>    <!-- Contenido del Modal - Tabla de Detalles -->
+    <div class="px-8 py-6 overflow-auto max-h-[60vh]">
+      <div class="mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <i class="fas fa-table text-everywhere-primary"></i>
+          Detalles de Liquidación
+        </h3>
+
+        <!-- Tabla de detalles -->
+        <div class="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
+          <table class="w-full bg-white">
+            <thead class="bg-gradient-to-r from-everywhere-primary to-everywhere-secondary text-white">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[120px]">Cliente (Viajero)</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[100px]">Producto</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[100px]">Proveedor</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[120px]">Nro de Ticket o File</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[120px]">Doc. Cobro</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[100px]">Operador</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold min-w-[110px]">Costo de Ticket</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold min-w-[120px]">Cargo por Servicio</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold min-w-[100px]">Valor Venta</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[110px]">Fee Emisión</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[110px]">Doc. Fee</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[100px]">Comisión</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[140px]">Fact X Com A Provee</th>
+                <th class="px-4 py-3 text-left text-sm font-semibold min-w-[140px]">Boleta/Fact/REC/ A Pasajero</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold min-w-[120px]">Monto Descontado</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold min-w-[120px]">Pago de Pax en USD</th>
+                <th class="px-4 py-3 text-right text-sm font-semibold min-w-[120px]">Pago Pax PEN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let detalle of liquidacionCompleta?.detalles; let i = index; trackBy: trackByDetalle"
+                  class="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+
+                <!-- Cliente (Viajero) -->
+                <td class="px-4 py-3 text-sm">
+                  <div class="flex flex-col">
+                    <span class="font-medium text-gray-800">{{ detalle.viajero?.personaNatural?.nombres || 'N/A' }}</span>
+                    <span class="text-xs text-gray-500">{{ detalle.viajero?.personaNatural?.apellidosPaterno || '' }} {{ detalle.viajero?.personaNatural?.apellidosMaterno || '' }}</span>
+                  </div>
+                </td>
+
+                <!-- Producto -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.producto?.descripcion || 'N/A' }}</span>
+                </td>
+
+                <!-- Proveedor -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.proveedor?.nombre || 'N/A' }}</span>
+                </td>
+
+                <!-- Nro de Ticket o File -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="font-mono text-gray-800">{{ detalle.ticket || 'N/A' }}</span>
+                </td>
+
+                <!-- Documento Cobro -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.documentoCobro || 'N/A' }}</span>
+                </td>
+
+                <!-- Operador -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.operador?.nombre || 'N/A' }}</span>
+                </td>
+
+                <!-- Costo de Ticket -->
+                <td class="px-4 py-3 text-sm text-right">
+                  <span class="font-semibold text-gray-800">
+                    {{ detalle.costoTicket ? (detalle.costoTicket | currency:'USD':'symbol':'1.2-2') : 'N/A' }}
+                  </span>
+                </td>
+
+                <!-- Cargo por Servicio -->
+                <td class="px-4 py-3 text-sm text-right">
+                  <span class="font-semibold text-gray-800">
+                    {{ detalle.cargoServicio ? (detalle.cargoServicio | currency:'USD':'symbol':'1.2-2') : 'N/A' }}
+                  </span>
+                </td>
+
+                <!-- Valor Venta -->
+                <td class="px-4 py-3 text-sm text-right">
+                  <span class="font-semibold text-green-600">
+                    {{ detalle.valorVenta ? (detalle.valorVenta | currency:'USD':'symbol':'1.2-2') : 'N/A' }}
+                  </span>
+                </td>
+
+                <!-- Fee Emision -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.feeEmision || 'N/A' }}</span>
+                </td>
+
+                <!-- Documento Fee -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.documentoFee || 'N/A' }}</span>
+                </td>
+
+                <!-- Comision -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.comision || 'N/A' }}</span>
+                </td>
+
+                <!-- Factura Compra -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.facturaCompra || 'N/A' }}</span>
+                </td>
+
+                <!-- Boleta Pasajero -->
+                <td class="px-4 py-3 text-sm">
+                  <span class="text-gray-800">{{ detalle.boletaPasajero || 'N/A' }}</span>
+                </td>
+
+                <!-- Monto Descontado -->
+                <td class="px-4 py-3 text-sm text-right">
+                  <span class="font-semibold text-red-600">
+                    {{ detalle.montoDescuento ? (detalle.montoDescuento | currency:'USD':'symbol':'1.2-2') : 'N/A' }}
+                  </span>
+                </td>
+
+                <!-- Pago Pax USD -->
+                <td class="px-4 py-3 text-sm text-right">
+                  <span class="font-semibold text-blue-600">
+                    {{ detalle.pagoPaxUSD ? (detalle.pagoPaxUSD | currency:'USD':'symbol':'1.2-2') : 'N/A' }}
+                  </span>
+                </td>
+
+                <!-- Pago Pax PEN -->
+                <td class="px-4 py-3 text-sm text-right">
+                  <span class="font-semibold text-blue-600">
+                    {{ detalle.pagoPaxPEN ? (detalle.pagoPaxPEN | currency:'PEN':'symbol':'1.2-2') : 'N/A' }}
+                  </span>
+                </td>
+              </tr>
+
+              <!-- Mensaje cuando no hay detalles -->
+              <tr *ngIf="liquidacionCompleta && (!liquidacionCompleta.detalles || liquidacionCompleta.detalles.length === 0)">
+                <td colspan="16" class="px-4 py-8 text-center text-gray-500">
+                  <div class="flex flex-col items-center gap-2">
+                    <i class="fas fa-inbox text-4xl text-gray-300"></i>
+                    <span class="text-lg">No hay detalles de liquidación registrados</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer del Modal -->
+    <div class="px-8 py-4 bg-gray-50 border-t flex justify-end gap-3">
+      <button (click)="cerrarModalVer()"
+              class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
+        <i class="fas fa-times"></i>
+        Cerrar
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal de Selección de Cotizaciones -->
+<div *ngIf="mostrarModalCotizaciones" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" (click)="cancelarSeleccionCotizacion()">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden" (click)="$event.stopPropagation()">
+    <!-- Header del Modal -->
+    <div class="bg-gradient-to-r from-everywhere-primary to-everywhere-secondary text-white p-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-2xl font-bold">Seleccionar Cotización</h2>
+          <p class="text-white/90 mt-1">Elige la cotización base para la liquidación</p>
+        </div>
+        <button (click)="cancelarSeleccionCotizacion()" class="hover:bg-white/20 p-2 rounded-lg transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenido del Modal -->
+    <div class="p-6">
+      <!-- Buscador -->
+      <div class="mb-6">
+        <div class="relative">
+          <input
+            type="text"
+            [(ngModel)]="searchCotizacion"
+            (ngModelChange)="filtrarCotizaciones()"
+            placeholder="Buscar por código, cliente o descripción..."
+            class="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </div>
+
+      <!-- Lista de Cotizaciones -->
+      <div class="max-h-96 overflow-y-auto space-y-3">
+        <div *ngFor="let cotizacion of cotizacionesFiltradas"
+             (click)="seleccionarCotizacion(cotizacion)"
+             class="border border-gray-200 rounded-xl p-4 hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-all duration-200">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <span class="font-semibold text-lg text-gray-900">{{ cotizacion.codigoCotizacion }}</span>
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {{ cotizacion.estadoCotizacion?.descripcion || 'Sin estado' }}
+                </span>
+              </div>
+              <p class="text-gray-700 font-medium">{{ getPersonaDisplayName(cotizacion.personas?.id || 0) }}</p>
+              <p class="text-gray-600 text-sm">{{ cotizacion.origenDestino || 'Sin destino' }}</p>
+              <div class="flex items-center gap-4 mt-2">
+                <span class="text-sm text-gray-500">
+                  <i class="fas fa-calendar-alt mr-1"></i>
+                  <span class="text-gray-500 text-xs">Salida:</span>
+                  {{ formatDate(cotizacion.fechaSalida) }}
+                </span>
+                <span class="text-sm text-gray-500">
+                  <i class="fas fa-calendar-alt mr-1"></i>
+                  <span class="text-gray-500 text-xs">Regreso:</span>
+                  {{ formatDate(cotizacion.fechaRegreso) }}
+                </span>
+                <span class="text-sm text-gray-500">
+                  <i class="fas fa-users mr-1"></i>
+                  {{ (cotizacion.cantAdultos || 0) + (cotizacion.cantNinos || 0) }} PAX
+                </span>
+              </div>
+            </div><!--
+            <div class="text-right">
+              <div class="text-xl font-bold text-gray-900">
+                {{ '0.00' | currency:'PEN':'symbol':'1.2-2' }}
+              </div>
+            </div>-->
+          </div>
+        </div>
+
+        <div *ngIf="cotizacionesFiltradas.length === 0" class="text-center py-8">
+          <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+          <p class="text-gray-500">No se encontraron cotizaciones</p>
+        </div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+        <button
+          (click)="cancelarSeleccionCotizacion()"
+          class="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 font-medium transition-all duration-200"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      lambda: ${{ steps.filter.outputs.lambda }}
+      terraform: ${{ steps.filter.outputs.terraform }}
+      ansible: ${{ steps.filter.outputs.ansible }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/backend/**'
+            frontend:
+              - 'apps/frontend/**'
+            lambda:
+              - 'apps/lambda-doc-generator/**'
+            terraform:
+              - 'iac/**'
+            ansible:
+              - 'ansible/**'
+
+  backend-test:
+    name: Backend build + test (Maven)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: everywheretravel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: everywheretravel
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: mvn test
+        working-directory: apps/backend
+        run: mvn -B test
+      - name: mvn package
+        working-directory: apps/backend
+        run: mvn -B package -DskipTests
+
+  frontend-test:
+    name: Frontend build + test (Angular)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - name: npm ci
+        working-directory: apps/frontend
+        run: npm ci
+      - name: ng test (headless)
+        working-directory: apps/frontend
+        run: npx ng test --watch=false --browsers=ChromeHeadless
+      - name: Generate environment.prod.ts (CI placeholder)
+        working-directory: apps/frontend
+        run: |
+          cat > src/environments/environment.prod.ts <<'EOF'
+          export const environment = {
+              production: true,
+              baseURL: 'http://localhost:8080/api/v1',
+              cognito: {
+                  authority: '',
+                  clientId: '',
+                  redirectUri: 'http://localhost:4200/callback',
+                  logoutUri: 'http://localhost:4200/logout',
+                  logoutEndpoint: '',
+                  scope: 'openid email profile'
+              }
+          };
+          EOF
+      - name: ng build
+        working-directory: apps/frontend
+        run: npm run build
+
+  lambda-build:
+    name: Lambda build (npm install)
+    needs: changes
+    if: needs.changes.outputs.lambda == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/lambda-doc-generator/package-lock.json
+      - name: npm ci --omit=dev
+        working-directory: apps/lambda-doc-generator
+        run: npm ci --omit=dev
+
+  terraform-validate:
+    name: Terraform fmt + validate
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: terraform fmt -check
+        working-directory: iac
+        run: terraform fmt -check -recursive
+      - name: terraform init (sin backend, solo para validate)
+        working-directory: iac
+        run: terraform init -backend=false
+      - name: terraform validate
+        working-directory: iac
+        run: terraform validate
+
+  checkov:
+    name: Checkov (analisis de seguridad IaC)
+    needs: changes
+    if: needs.changes.outputs.terraform == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Checkov
+        run: |
+          docker run --rm -v ${{ github.workspace }}/iac:/tf --workdir /tf \
+            bridgecrew/checkov:3 --directory /tf --compact \
+            -o cli -o junitxml --output-file-path console,results.xml
+      - name: Upload Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-results
+          path: iac/results.xml
+          retention-days: 30
+
+  ansible-check:
+    name: Ansible syntax-check
+    needs: changes
+    if: needs.changes.outputs.ansible == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ansible
+        run: pip install ansible
+      - name: ansible-galaxy collection install
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+      - name: Syntax-check playbooks
+        run: |
+          for playbook in ansible/playbooks/*.yml; do
+            echo "== $playbook =="
+            ansible-playbook "$playbook" --syntax-check
+          done
