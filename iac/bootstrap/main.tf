@@ -4,6 +4,9 @@ terraform {
       source  = "hashicorp/aws"
       version = "6.49.0"
     }
+    tls = {
+      source = "hashicorp/tls"
+    }
   }
 }
 
@@ -73,4 +76,19 @@ resource "aws_s3_bucket_public_access_block" "tfstate" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+data "tls_certificate" "github_actions" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.github_actions.certificates[0].sha1_fingerprint]
+
+  tags = {
+    Name      = "github-actions-oidc"
+    ManagedBy = "terraform-bootstrap"
+  }
 }

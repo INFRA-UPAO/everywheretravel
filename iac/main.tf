@@ -320,7 +320,6 @@ module "github_oidc" {
 
   prefix           = local.prefix
   env              = local.env
-  create_provider  = local.env == "dev"
   create_plan_role = local.env == "dev"
 }
 

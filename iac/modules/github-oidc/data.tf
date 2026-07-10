@@ -1,13 +1,12 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-data "tls_certificate" "github_actions" {
-  url = "https://token.actions.githubusercontent.com"
-}
-
 locals {
-  account_id                = data.aws_caller_identity.current.account_id
-  region                    = data.aws_region.current.region
+  account_id = data.aws_caller_identity.current.account_id
+  region     = data.aws_region.current.region
+  # El proveedor OIDC lo crea iac/bootstrap (recurso unico por cuenta AWS,
+  # fuera del ciclo de vida de cualquier workspace dev/prod). Aqui solo se
+  # referencia su ARN, que es predecible por la URL fija del issuer.
   oidc_provider_arn         = "arn:aws:iam::${local.account_id}:oidc-provider/token.actions.githubusercontent.com"
   tfstate_bucket_arn        = "arn:aws:s3:::${var.tfstate_bucket_name}"
   ecr_repo_arn              = "arn:aws:ecr:${local.region}:${local.account_id}:repository/${var.prefix}-monolito"
