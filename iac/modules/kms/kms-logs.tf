@@ -30,6 +30,24 @@ resource "aws_kms_key_policy" "logs" {
         Resource = "*"
       },
       {
+        Sid    = "AllowLogDeliveryService"
+        Effect = "Allow"
+        Principal = {
+          Service = "delivery.logs.amazonaws.com"
+        }
+        Action = [
+          "kms:GenerateDataKey*",
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = local.account_id
+          }
+        }
+      },
+      {
         Sid    = "AllowCloudWatchLogs"
         Effect = "Allow"
         Principal = {

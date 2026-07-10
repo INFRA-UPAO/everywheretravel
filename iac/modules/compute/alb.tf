@@ -49,13 +49,6 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-data "aws_vpc" "current" {
-  filter {
-    name   = "tag:Name"
-    values = ["${var.prefix}-vpc"]
-  }
-}
-
 resource "aws_lb_listener" "main" {
   # checkov:skip=CKV_AWS_2:Listener HTTP interno - tráfico viene de API Gateway via VPC Link
   # checkov:skip=CKV_AWS_103:Listener HTTP interno - TLS se maneja en CloudFront y API Gateway
