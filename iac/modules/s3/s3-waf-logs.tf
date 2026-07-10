@@ -30,6 +30,12 @@ data "aws_iam_policy_document" "waf_logs_policy" {
       variable = "aws:SourceAccount"
       values   = [local.account_id]
     }
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:logs:${local.region}:${local.account_id}:*"]
+    }
   }
 
   statement {
@@ -49,8 +55,20 @@ data "aws_iam_policy_document" "waf_logs_policy" {
 
     condition {
       test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+
+    condition {
+      test     = "StringEquals"
       variable = "aws:SourceAccount"
       values   = [local.account_id]
+    }
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:logs:${local.region}:${local.account_id}:*"]
     }
   }
 
