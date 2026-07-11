@@ -177,6 +177,18 @@ data "aws_iam_policy_document" "plan_permissions" {
     ]
     resources = ["*"]
   }
+
+  statement {
+    sid    = "S3TfstateLock"
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = [
+      "${aws_s3_bucket.tfstate.arn}/*",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "plan" {
