@@ -69,9 +69,37 @@ jobs:
           path: ansible/terraform-output.json
           retention-days: 1
 
-  deploy-backend:
-    name: Ansible - backend ECS
+  build-push-backend:
+    name: Ansible - build+push imagen backend
     needs: terraform-apply
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: terraform-output-${{ inputs.environment }}
+          path: ansible
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Ansible + colecciones AWS
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: ansible-playbook build_push_backend_image.yml
+        run: |
+          ansible-playbook -i ansible/inventory/local.yml ansible/playbooks/build_push_backend_image.yml \
+            -e image_tag=${{ github.sha }}
+
+  deploy-backend:
+    name: Ansible - deploy backend ECS
+    needs: build-push-backend
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
