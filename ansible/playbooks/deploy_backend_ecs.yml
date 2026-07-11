@@ -1,5 +1,5 @@
 ---
-- name: Build, push and deploy backend image to ECS
+- name: Deploy backend image to ECS
   hosts: localhost
   gather_facts: false
   vars:
@@ -8,7 +8,6 @@
     outputs: "{{ lookup('file', terraform_output_file) | from_json }}"
     aws_region: "{{ outputs.aws_region.value }}"
     ecr_repo_url: "{{ outputs.ecr_repo_url.value }}"
-    ecr_registry: "{{ ecr_repo_url.split('/')[0] }}"
     ecs_cluster_name: "{{ outputs.ecs_cluster_name.value }}"
     ecs_service_name: "{{ outputs.ecs_service_name.value }}"
     image_uri: "{{ ecr_repo_url }}:{{ image_tag }}"
@@ -20,22 +19,6 @@
           - image_tag is defined
           - image_tag | length > 0
         fail_msg: "Run with -e image_tag=demo-v1"
-
-    - name: Login Docker to Amazon ECR
-      ansible.builtin.shell: >
-        aws ecr get-login-password --region {{ aws_region }}
-        | docker login --username AWS --password-stdin {{ ecr_registry }}
-      changed_when: false
-
-    - name: Build backend Docker image
-      ansible.builtin.command:
-        cmd: docker build -t {{ image_uri }} apps/backend
-        chdir: "{{ repo_root }}"
-
-    - name: Push backend Docker image
-      ansible.builtin.command:
-        cmd: docker push {{ image_uri }}
-        chdir: "{{ repo_root }}"
 
     - name: Get current ECS service details
       community.aws.ecs_service_info:
