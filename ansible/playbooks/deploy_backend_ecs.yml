@@ -28,13 +28,11 @@
         details: true
       register: ecs_service_details
 
-    - name: Read current ECS task definition
-      # community.aws.ecs_taskdefinition_info no expone execution_role_arn/cpu/memory,
-      # asi que este paso especifico se queda con la CLI para tener el JSON completo.
+    - name: Read latest ECS task definition
       ansible.builtin.command: >
         aws ecs describe-task-definition
         --region {{ aws_region }}
-        --task-definition {{ ecs_service_details.services[0].taskDefinition }}
+        --task-definition {{ ecs_service_details.services[0].taskDefinition.split('/')[-1].split(':')[0] }}
         --output json
       register: current_task_definition_raw
       changed_when: false
