@@ -8,6 +8,14 @@ terraform {
       source = "hashicorp/tls"
     }
   }
+
+  backend "s3" {
+    bucket       = "everywhere-travel-tfstate"
+    key          = "bootstrap/terraform.tfstate"
+    region       = "us-east-2"
+    use_lockfile = true
+    encrypt      = true
+  }
 }
 
 provider "aws" {
