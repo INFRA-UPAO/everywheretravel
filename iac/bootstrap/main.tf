@@ -399,8 +399,22 @@ data "aws_iam_policy_document" "deploy_permissions" {
       "kms:Decrypt",
       "kms:Encrypt",
       "kms:GenerateDataKey",
+      "kms:CreateGrant",
+      "kms:ListGrants",
+      "kms:RevokeGrant",
     ]
     resources = ["*"]
+  }
+
+  statement {
+    sid    = "ServerlessAppRepoDeploymentBucket"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+    ]
+    resources = [
+      "arn:aws:s3:::awsserverlessrepo-changesets-*/*",
+    ]
   }
 
   statement {
