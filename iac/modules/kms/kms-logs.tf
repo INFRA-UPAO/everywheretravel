@@ -37,15 +37,9 @@ resource "aws_kms_key_policy" "logs" {
         }
         Action = [
           "kms:GenerateDataKey*",
-          "kms:Decrypt",
-          "kms:DescribeKey"
+          "kms:Decrypt"
         ]
         Resource = "*"
-        Condition = {
-          StringEquals = {
-            "aws:SourceAccount" = local.account_id
-          }
-        }
       },
       {
         Sid    = "AllowCloudWatchLogs"

@@ -313,37 +313,26 @@ Agregar al final de README.md (después de "## Estructura del proyecto")
 
 Esta seccion deja operativo el pipeline de `.github/workflows/`. Es **estado real en AWS/GitHub**, no código versionado, así que se hace a mano (con SSO local ya configurado) y no lo ejecuta el pipeline.
 
-Orden obligatorio: **1 → 2 → 3 → 4**. El paso 2 (workspace `prod`) depende del OIDC provider que crea el paso 1 (workspace `dev`).
+Orden obligatorio: **1 → 2**. El paso 1 (`iac/bootstrap`) crea todos los recursos de IAM/OIDC — es lo único que hace falta antes de configurar GitHub; no depende de que `dev` o `prod` estén desplegados, y sobrevive cualquier `destroy` de esos workspaces.
 
-### 1. Terraform apply en workspace `dev`
+### 1. Terraform apply en `iac/bootstrap`
 
-Crea el OIDC provider de GitHub Actions (único por cuenta AWS), el rol de deploy de dev y el rol de solo lectura para `terraform plan` en PRs.
+Crea el bucket S3 del tfstate, el OIDC provider de GitHub Actions, el rol de solo lectura para `terraform plan` en PRs, y los roles de deploy de `dev` y `prod` — todos son recursos que viven fuera del ciclo de vida de cualquier workspace `dev`/`prod`, para que un `destroy` de un entorno nunca se los lleve por delante (si no, el pipeline de ese entorno queda sin forma de volver a autenticarse por su cuenta).
 
 \`\`\`powershell
-cd iac
+cd iac/bootstrap
 terraform init
-terraform workspace select dev
-terraform apply -var-file="tfvars/dev.tfvars"
-terraform output -raw github_deploy_role_arn
-terraform output -raw github_plan_role_arn
-cd ..
+terraform apply
+terraform output github_oidc_provider_arn
+terraform output github_plan_role_arn
+terraform output github_deploy_role_arn_dev
+terraform output github_deploy_role_arn_prod
+cd ../..
 \`\`\`
 
-Guarda los dos ARNs que imprime, se usan en el paso 3.
+Guarda los cuatro ARNs, se usan en el paso 2.
 
-### 2. Terraform apply en workspace `prod`
-
-Crea el rol de deploy de prod (reutiliza el OIDC provider ya creado en dev, por eso el orden importa).
-
-\`\`\`powershell
-cd iac
-terraform workspace select prod
-terraform apply -var-file="tfvars/prod.tfvars"
-terraform output -raw github_deploy_role_arn
-cd ..
-\`\`\`
-
-### 3. GitHub Environments, variables y secrets (manual, desde la UI)
+### 2. GitHub Environments, variables y secrets (manual, desde la UI)
 
 **Crear los Environments** — `Settings → Environments → New environment`:
 
@@ -370,7 +359,7 @@ Environment `dev`:
 Environment `prod` (mismas claves que dev, mas las dos de Zoho, con estos valores):
 
 | Variable                  | Valor                                                                                                                                                                                                                                        |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PROJECT_NAME`            | `everywhere-travel`                                                                                                                                                                                                                          |
 | `AWS_REGION`              | `us-east-2`                                                                                                                                                                                                                                  |
 | `DOMAIN_NAME`             | `everywheretravel.online`                                                                                                                                                                                                                    |
@@ -386,8 +375,8 @@ Environment `prod` (mismas claves que dev, mas las dos de Zoho, con estos valore
 
 **Secret `AWS_ROLE_ARN`** (usado por `deploy.yml`) — dentro de cada Environment, `Environment secrets → Add secret`:
 
-- `dev` → `AWS_ROLE_ARN` = `<deploy-role-arn-dev>` (del paso 1)
-- `prod` → `AWS_ROLE_ARN` = `<deploy-role-arn-prod>` (del paso 2)
+- `dev` → `AWS_ROLE_ARN` = `<deploy-role-arn-dev>` (del paso 1, `github_deploy_role_arn_dev`)
+- `prod` → `AWS_ROLE_ARN` = `<deploy-role-arn-prod>` (del paso 1, `github_deploy_role_arn_prod`)
 
 **Variables y secret a nivel de repositorio** — `Settings → Secrets and variables → Actions` (pestañas "Variables" y "Secrets", **no** dentro de un Environment). Los usa `terraform-plan.yml`, que corre en Pull Requests y por eso no puede depender de un Environment:
 
@@ -404,9 +393,9 @@ Environment `prod` (mismas claves que dev, mas las dos de Zoho, con estos valore
 | `DEV_LAMBDA_TIMEOUT` | `30`                          |
 | `DEV_VPC_CIDR`       | `10.0.0.0/16`                 |
 
-Secret: `AWS_PLAN_ROLE_ARN` = `<plan-role-arn>` (del paso 1).
+Secret: `AWS_PLAN_ROLE_ARN` = `<plan-role-arn>` (del paso 1, `iac/bootstrap`).
 
-### 4. Branch protection en `main` y `dev` (manual, desde la UI)
+### 3. Branch protection en `main` y `dev` (manual, desde la UI)
 
 `Settings → Branches → Add branch protection rule`. Repetir para `main` y para `dev`, con:
 
@@ -431,5 +420,5 @@ Quien haga este paso necesita permiso de IAM para administrar ese user pool espe
 
 ### Notas
 
-- Los roles IAM (`iac/modules/github-oidc`) tienen permisos amplios por servicio AWS, acotados por el prefijo `everywhere-travel-*` donde el ARN lo permite. No es least-privilege exhaustivo — es el nivel acordado para este proyecto de curso.
-- Si en algún momento hay que rotar/recrear el OIDC provider, solo se puede hacer desde el workspace que tiene `create_provider = true` (hoy: `dev`, ver `iac/main.tf`).
+- Los roles IAM (`iac/bootstrap`) tienen permisos amplios por servicio AWS, acotados por el prefijo `everywhere-travel-*` donde el ARN lo permite. No es least-privilege exhaustivo — es el nivel acordado para este proyecto de curso.
+- El OIDC provider, el rol de plan de PRs y los roles de deploy de `dev`/`prod` viven todos en `iac/bootstrap` — no en ningún workspace `dev`/`prod`. Un `terraform destroy` de un entorno nunca los toca, así que el pipeline de CI de ese entorno siempre puede volver a autenticarse sin pasos manuales. Rotarlos/recrearlos se hace desde ahí (`cd iac/bootstrap && terraform apply`).
