@@ -1,8 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { StorageService } from '../storage.service';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable, map, tap } from 'rxjs';
 import { AuthResponse } from '../../../shared/models/auth/auth-response-model';
 import { CognitoAuthService } from '../cognito/cognito-auth.service';
+import { UserService } from '../User/user.service';
+import { buildPermissions } from '../../../shared/models/role.model';
 
 @Injectable({
   providedIn: 'root'
@@ -10,6 +12,7 @@ import { CognitoAuthService } from '../cognito/cognito-auth.service';
 export class AuthServiceService {
   private storageService = inject(StorageService);
   private cognitoAuthService = inject(CognitoAuthService);
+  private userService = inject(UserService);
 
   // Observable central para usuario actual
   private currentUserSubject = new BehaviorSubject<AuthResponse | null>(this.storageService.getAuthData());
@@ -44,6 +47,19 @@ export class AuthServiceService {
   updateCurrentUser(data: AuthResponse): void {
     this.storageService.setAuthData(data);
     this.currentUserSubject.next(data);
+  }
+
+  loadCurrentUserProfile(): Observable<AuthResponse> {
+    return this.userService.getCurrentProfile().pipe(
+      map(profile => ({
+        id: profile.id,
+        token: '',
+        name: profile.name,
+        role: profile.role ?? '',
+        permissions: buildPermissions(profile.role)
+      })),
+      tap(authData => this.updateCurrentUser(authData))
+    );
   }
 
   updateCurrentUserName(name: string): void {

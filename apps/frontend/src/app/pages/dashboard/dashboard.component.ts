@@ -70,6 +70,13 @@ export class DashboardComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
+    if (!this.authService.getUser()) {
+      this.authService.loadCurrentUserProfile().subscribe({
+        next: () => this.initializeData(),
+        error: () => this.initializeData()
+      });
+      return;
+    }
     this.initializeData();
     //this.updateExchangeRate();
   }

@@ -90,3 +90,16 @@ export const ROLES_DEFINITION: { [key in RoleType]: Role } = {
     modules: ['COTIZACIONES', 'PERSONAS', 'LIQUIDACIONES', 'VIAJEROS', 'CONTABILIDAD', 'PRODUCTOS', 'PROVEEDORES', 'SUCURSALES', 'DOCUMENTOS_COBRANZA']
   }
 };
+
+export function buildPermissions(role: string | undefined | null): { [module: string]: Permission[] } {
+  const roleDefinition = ROLES_DEFINITION[role as RoleType];
+  if (!roleDefinition) {
+    return {};
+  }
+
+  const permissions: { [module: string]: Permission[] } = {};
+  for (const moduleKey of roleDefinition.modules) {
+    permissions[moduleKey] = roleDefinition.permissions as Permission[];
+  }
+  return permissions;
+}

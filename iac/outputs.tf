@@ -73,12 +73,3 @@ output "cognito_issuer_url" {
   value       = module.auth.cognito_issuer_url
 }
 
-output "github_deploy_role_arn" {
-  description = "ARN del rol IAM que asume GitHub Actions (via OIDC) para desplegar este workspace"
-  value       = module.github_oidc.deploy_role_arn
-}
-
-output "github_plan_role_arn" {
-  description = "ARN del rol IAM de solo lectura para terraform plan en Pull Requests (null salvo en el workspace que lo crea)"
-  value       = module.github_oidc.plan_role_arn
-}
