@@ -402,8 +402,32 @@ data "aws_iam_policy_document" "deploy_permissions" {
       "kms:CreateGrant",
       "kms:ListGrants",
       "kms:RevokeGrant",
+      "kms:GetPublicKey",
+      "kms:Sign",
     ]
     resources = ["*"]
+  }
+
+  statement {
+    sid    = "IAMServerlessRepoRoles"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:GetRole",
+      "iam:UpdateRole",
+      "iam:TagRole",
+      "iam:UntagRole",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:ListRolePolicies",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:ListAttachedRolePolicies",
+      "iam:PassRole",
+    ]
+    resources = ["arn:aws:iam::${local.account_id}:role/serverlessrepo-*"]
   }
 
   statement {
