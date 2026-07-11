@@ -3,10 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { take } from 'rxjs';
 import { CognitoAuthService } from '../../../core/service/cognito/cognito-auth.service';
-import { StorageService } from '../../../core/service/storage.service';
-import { UserService } from '../../../core/service/User/user.service';
-import { AuthResponse } from '../../../shared/models/auth/auth-response-model';
-import { ROLES_DEFINITION, RoleType, Permission } from '../../../shared/models/role.model';
+import { AuthServiceService } from '../../../core/service/auth/auth.service';
 
 @Component({
   selector: 'app-callback',
@@ -53,8 +50,7 @@ export class CallbackComponent implements OnInit {
   errorMessage = '';
 
   private cognitoAuthService = inject(CognitoAuthService);
-  private storageService = inject(StorageService);
-  private userService = inject(UserService);
+  private authService = inject(AuthServiceService);
   private router = inject(Router);
 
   ngOnInit(): void {
@@ -77,17 +73,8 @@ export class CallbackComponent implements OnInit {
   }
 
   private fetchUserProfile(): void {
-    this.userService.getCurrentProfile().subscribe({
-      next: (profile) => {
-        // The JWT token is managed by the OIDC library, so we store an empty string
-        const authData: AuthResponse = {
-          id: profile.id,
-          token: '',
-          name: profile.name,
-          role: profile.role ?? '',
-          permissions: this.buildPermissions(profile.role)
-        };
-        this.storageService.setAuthData(authData);
+    this.authService.loadCurrentUserProfile().subscribe({
+      next: () => {
         this.router.navigate(['/dashboard']);
       },
       error: () => {
@@ -95,18 +82,5 @@ export class CallbackComponent implements OnInit {
         setTimeout(() => this.router.navigate(['/auth/login']), 3000);
       }
     });
-  }
-
-  private buildPermissions(role: string | undefined | null): { [module: string]: Permission[] } {
-    const roleDefinition = ROLES_DEFINITION[role as RoleType];
-    if (!roleDefinition) {
-      return {};
-    }
-
-    const permissions: { [module: string]: Permission[] } = {};
-    for (const moduleKey of roleDefinition.modules) {
-      permissions[moduleKey] = roleDefinition.permissions as Permission[];
-    }
-    return permissions;
   }
 }
