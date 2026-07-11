@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "monolito" {
         interval    = 30
         timeout     = 5
         retries     = 3
-        startPeriod = 60
+        startPeriod = 180
       }
 
       readonlyRootFilesystem = true
@@ -163,7 +163,7 @@ resource "aws_ecs_service" "monolito" {
     rollback = true
   }
 
-  health_check_grace_period_seconds = 60
+  health_check_grace_period_seconds = 240
 
   propagate_tags = "SERVICE"
 
