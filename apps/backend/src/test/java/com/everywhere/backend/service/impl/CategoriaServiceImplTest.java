@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class CategoriaServiceImplTest {
@@ -90,5 +93,17 @@ class CategoriaServiceImplTest {
 
         assertThat(resultado.getId()).isEqualTo(1);
         assertThat(resultado.getNombre()).isEqualTo("Hoteles");
+    }
+
+    @Test
+    void create_conNombreDuplicado_lanzaDataIntegrityViolationException() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsByNombreIgnoreCase("Hoteles")).willReturn(true);
+
+        assertThatThrownBy(() -> categoriaService.create(request))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(categoriaRepository, never()).save(any());
     }
 }
