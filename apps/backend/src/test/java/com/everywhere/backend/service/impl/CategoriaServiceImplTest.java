@@ -2,6 +2,7 @@ package com.everywhere.backend.service.impl;
 
 import com.everywhere.backend.exceptions.ResourceNotFoundException;
 import com.everywhere.backend.mapper.CategoriaMapper;
+import com.everywhere.backend.model.dto.CategoriaRequestDto;
 import com.everywhere.backend.model.dto.CategoriaResponseDto;
 import com.everywhere.backend.model.entity.Categoria;
 import com.everywhere.backend.repository.CategoriaRepository;
@@ -18,6 +19,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,5 +77,18 @@ class CategoriaServiceImplTest {
 
         assertThatThrownBy(() -> categoriaService.findById(99))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void create_conNombreUnico_guardaYDevuelveCategoriaMapeada() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsByNombreIgnoreCase("Hoteles")).willReturn(false);
+        given(categoriaRepository.save(any(Categoria.class))).willReturn(categoriaConId(1, "Hoteles"));
+
+        CategoriaResponseDto resultado = categoriaService.create(request);
+
+        assertThat(resultado.getId()).isEqualTo(1);
+        assertThat(resultado.getNombre()).isEqualTo("Hoteles");
     }
 }
