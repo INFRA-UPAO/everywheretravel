@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.modelmapper.ModelMapper;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
@@ -54,5 +55,15 @@ class CategoriaServiceImplTest {
         assertThat(resultado)
                 .extracting(CategoriaResponseDto::getNombre)
                 .containsExactly("Hoteles", "Vuelos");
+    }
+
+    @Test
+    void findById_conIdExistente_devuelveCategoriaMapeada() {
+        given(categoriaRepository.findById(1)).willReturn(Optional.of(categoriaConId(1, "Hoteles")));
+
+        CategoriaResponseDto resultado = categoriaService.findById(1);
+
+        assertThat(resultado.getId()).isEqualTo(1);
+        assertThat(resultado.getNombre()).isEqualTo("Hoteles");
     }
 }
