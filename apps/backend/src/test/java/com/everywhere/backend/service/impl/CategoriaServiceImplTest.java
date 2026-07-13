@@ -1,5 +1,6 @@
 package com.everywhere.backend.service.impl;
 
+import com.everywhere.backend.exceptions.ConflictException;
 import com.everywhere.backend.exceptions.ResourceNotFoundException;
 import com.everywhere.backend.mapper.CategoriaMapper;
 import com.everywhere.backend.model.dto.CategoriaRequestDto;
@@ -152,6 +153,18 @@ class CategoriaServiceImplTest {
 
         assertThatThrownBy(() -> categoriaService.delete(99))
                 .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(categoriaRepository, never()).deleteById(anyInt());
+    }
+
+    @Test
+    void delete_conDetallesDeCotizacionAsociados_lanzaConflictException() {
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByCategoriaId(1)).willReturn(3L);
+
+        assertThatThrownBy(() -> categoriaService.delete(1))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("3 detalle(s)");
 
         verify(categoriaRepository, never()).deleteById(anyInt());
     }
