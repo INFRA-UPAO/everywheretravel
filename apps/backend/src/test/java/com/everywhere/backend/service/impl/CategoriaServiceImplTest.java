@@ -116,4 +116,18 @@ class CategoriaServiceImplTest {
         assertThatThrownBy(() -> categoriaService.patch(99, request))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void patch_conNombreYaUsadoPorOtraCategoria_lanzaDataIntegrityViolationException() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Vuelos");
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(categoriaRepository.existsByNombreIgnoreCase("Vuelos")).willReturn(true);
+        given(categoriaRepository.findById(1)).willReturn(Optional.of(categoriaConId(1, "Hoteles")));
+
+        assertThatThrownBy(() -> categoriaService.patch(1, request))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(categoriaRepository, never()).save(any());
+    }
 }
