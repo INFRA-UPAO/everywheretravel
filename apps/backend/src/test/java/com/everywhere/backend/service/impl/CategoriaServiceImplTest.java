@@ -106,4 +106,14 @@ class CategoriaServiceImplTest {
 
         verify(categoriaRepository, never()).save(any());
     }
+
+    @Test
+    void patch_conIdInexistente_lanzaResourceNotFoundException() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> categoriaService.patch(99, request))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }
