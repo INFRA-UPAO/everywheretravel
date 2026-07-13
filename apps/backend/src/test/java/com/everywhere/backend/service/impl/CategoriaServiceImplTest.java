@@ -130,4 +130,18 @@ class CategoriaServiceImplTest {
 
         verify(categoriaRepository, never()).save(any());
     }
+
+    @Test
+    void patch_conNombreSinCambios_actualizaCorrectamente() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(categoriaRepository.existsByNombreIgnoreCase("Hoteles")).willReturn(true);
+        given(categoriaRepository.findById(1)).willReturn(Optional.of(categoriaConId(1, "Hoteles")));
+        given(categoriaRepository.save(any(Categoria.class))).willReturn(categoriaConId(1, "Hoteles"));
+
+        CategoriaResponseDto resultado = categoriaService.patch(1, request);
+
+        assertThat(resultado.getNombre()).isEqualTo("Hoteles");
+    }
 }
