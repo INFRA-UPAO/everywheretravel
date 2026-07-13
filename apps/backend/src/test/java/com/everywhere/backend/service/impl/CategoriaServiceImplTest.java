@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -167,5 +168,15 @@ class CategoriaServiceImplTest {
                 .hasMessageContaining("3 detalle(s)");
 
         verify(categoriaRepository, never()).deleteById(anyInt());
+    }
+
+    @Test
+    void delete_sinDetallesAsociados_eliminaLaCategoria() {
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByCategoriaId(1)).willReturn(0L);
+
+        categoriaService.delete(1);
+
+        verify(categoriaRepository, times(1)).deleteById(1);
     }
 }
