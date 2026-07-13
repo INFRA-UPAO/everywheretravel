@@ -21,6 +21,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -143,5 +144,15 @@ class CategoriaServiceImplTest {
         CategoriaResponseDto resultado = categoriaService.patch(1, request);
 
         assertThat(resultado.getNombre()).isEqualTo("Hoteles");
+    }
+
+    @Test
+    void delete_conIdInexistente_lanzaResourceNotFoundException() {
+        given(categoriaRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> categoriaService.delete(99))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(categoriaRepository, never()).deleteById(anyInt());
     }
 }
