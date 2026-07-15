@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -150,5 +151,45 @@ class SucursalServiceImplTest {
         SucursalResponseDTO resultado = sucursalService.update(1, request);
 
         assertThat(resultado.getDescripcion()).isEqualTo("Sucursal Centro actualizada");
+    }
+
+    @Test
+    void deleteById_conIdInexistente_lanzaResourceNotFoundException() {
+        given(sucursalRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> sucursalService.deleteById(99))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(sucursalRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteById_conIdExistente_eliminaLaSucursal() {
+        given(sucursalRepository.existsById(1)).willReturn(true);
+
+        sucursalService.deleteById(1);
+
+        verify(sucursalRepository, times(1)).deleteById(1);
+    }
+
+    @Test
+    void cambiarEstado_conIdInexistente_lanzaResourceNotFoundException() {
+        given(sucursalRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> sucursalService.cambiarEstado(99, false))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void cambiarEstado_conIdExistente_actualizaElEstado() {
+        given(sucursalRepository.existsById(1)).willReturn(true);
+        given(sucursalRepository.findById(1))
+                .willReturn(Optional.of(sucursalConId(1, "Sucursal Centro", "centro@everywhere.com", true)));
+        given(sucursalRepository.save(any(Sucursal.class)))
+                .willReturn(sucursalConId(1, "Sucursal Centro", "centro@everywhere.com", false));
+
+        SucursalResponseDTO resultado = sucursalService.cambiarEstado(1, false);
+
+        assertThat(resultado.getEstado()).isFalse();
     }
 }
