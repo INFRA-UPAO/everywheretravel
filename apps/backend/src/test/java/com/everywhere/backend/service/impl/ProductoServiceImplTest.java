@@ -139,4 +139,50 @@ class ProductoServiceImplTest {
 
         assertThat(resultado).extracting(ProductoResponseDTO::getTipo).containsExactly("Vuelo", "Seguro");
     }
+
+    @Test
+    void delete_conIdInexistente_lanzaResourceNotFoundException() {
+        given(productoRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> productoService.delete(99))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(productoRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void delete_conCotizacionesAsociadas_lanzaConflictException() {
+        given(productoRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByProductoId(1)).willReturn(2L);
+
+        assertThatThrownBy(() -> productoService.delete(1))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("2 cotización(es)");
+
+        verify(productoRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void delete_conLiquidacionesAsociadas_lanzaConflictException() {
+        given(productoRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByProductoId(1)).willReturn(0L);
+        given(detalleLiquidacionRepository.countByProductoId(1)).willReturn(1L);
+
+        assertThatThrownBy(() -> productoService.delete(1))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("1 liquidación(es)");
+
+        verify(productoRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void delete_sinAsociaciones_eliminaElProducto() {
+        given(productoRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByProductoId(1)).willReturn(0L);
+        given(detalleLiquidacionRepository.countByProductoId(1)).willReturn(0L);
+
+        productoService.delete(1);
+
+        verify(productoRepository, times(1)).deleteById(1);
+    }
 }
