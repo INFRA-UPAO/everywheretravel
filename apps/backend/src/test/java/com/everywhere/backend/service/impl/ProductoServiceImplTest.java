@@ -111,4 +111,32 @@ class ProductoServiceImplTest {
 
         assertThat(resultado.getDescripcion()).isEqualTo("Vuelo directo actualizado");
     }
+
+    @Test
+    void getById_conIdExistente_devuelveProductoMapeado() {
+        given(productoRepository.findById(1)).willReturn(Optional.of(productoConId(1, "Vuelo directo", "Vuelo")));
+
+        ProductoResponseDTO resultado = productoService.getById(1);
+
+        assertThat(resultado.getDescripcion()).isEqualTo("Vuelo directo");
+    }
+
+    @Test
+    void getById_conIdInexistente_lanzaResourceNotFoundException() {
+        given(productoRepository.findById(99)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productoService.getById(99))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void getAll_conProductosExistentes_devuelveListaMapeada() {
+        given(productoRepository.findAll()).willReturn(List.of(
+                productoConId(1, "Vuelo directo", "Vuelo"),
+                productoConId(2, "Seguro de viaje", "Seguro")));
+
+        List<ProductoResponseDTO> resultado = productoService.getAll();
+
+        assertThat(resultado).extracting(ProductoResponseDTO::getTipo).containsExactly("Vuelo", "Seguro");
+    }
 }
