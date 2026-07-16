@@ -139,6 +139,7 @@ resource "aws_iam_role" "plan" {
 data "aws_iam_policy_document" "plan_permissions" {
   #checkov:skip=CKV_AWS_108:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
   #checkov:skip=CKV_AWS_356:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
+  #checkov:skip=CKV_AWS_111:kms:Decrypt esta clasificado como "Write" por AWS aunque es de solo lectura; necesario para que terraform plan pueda refrescar aws_secretsmanager_secret_version (decision revisada y aprobada)
   statement {
     sid    = "ReadOnlyForPlan"
     effect = "Allow"
