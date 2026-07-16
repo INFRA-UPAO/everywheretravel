@@ -26,7 +26,7 @@ resource "aws_db_parameter_group" "main" {
 
   parameter {
     name         = "max_connections"
-    value        = "100"
+    value        = "250"
     apply_method = "pending-reboot"
   }
 

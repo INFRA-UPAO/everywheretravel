@@ -135,6 +135,21 @@ module "secrets" {
   rds_instance_arn       = module.database.rds_arn
 }
 
+module "rds_proxy" {
+  source    = "./modules/rds-proxy"
+  providers = { aws = aws.main }
+
+  prefix                  = local.prefix
+  is_prod                 = local.is_prod
+  vpc_id                  = module.networking.vpc_id
+  private_data_subnet_ids = module.networking.private_data_subnet_ids
+  sg_rds_id               = module.security_groups.sg_rds_id
+  sg_ecs_task_id          = module.security_groups.sg_ecs_task_id
+  rds_instance_id         = module.database.rds_identifier
+  rds_secret_arn          = module.secrets.rds_secret_arn
+  kms_secrets_arn         = module.kms.kms_secrets_arn
+}
+
 module "vpc_endpoints" {
   source = "./modules/vpc-endpoints"
 
@@ -200,6 +215,7 @@ module "compute" {
   sqs_queue_url          = module.sqs.sqs_queue_url
   s3_docs_bucket         = module.s3.s3_docs_bucket
   rds_secret_arn         = module.secrets.rds_secret_arn
+  rds_proxy_endpoint     = coalesce(module.rds_proxy.proxy_endpoint, module.database.rds_address)
   kms_logs_arn           = module.kms.kms_logs_arn
   environment            = local.env
   cognito_user_pool_id   = module.auth.cognito_user_pool_id

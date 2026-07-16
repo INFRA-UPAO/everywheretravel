@@ -1,0 +1,182 @@
+package com.everywhere.backend.service.impl;
+
+import com.everywhere.backend.exceptions.ConflictException;
+import com.everywhere.backend.exceptions.ResourceNotFoundException;
+import com.everywhere.backend.mapper.CategoriaMapper;
+import com.everywhere.backend.model.dto.CategoriaRequestDto;
+import com.everywhere.backend.model.dto.CategoriaResponseDto;
+import com.everywhere.backend.model.entity.Categoria;
+import com.everywhere.backend.repository.CategoriaRepository;
+import com.everywhere.backend.repository.DetalleCotizacionRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.modelmapper.ModelMapper;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class CategoriaServiceImplTest {
+
+    @Mock
+    private CategoriaRepository categoriaRepository;
+
+    @Mock
+    private DetalleCotizacionRepository detalleCotizacionRepository;
+
+    private CategoriaMapper categoriaMapper;
+
+    private CategoriaServiceImpl categoriaService;
+
+    @BeforeEach
+    void setUp() {
+        categoriaMapper = new CategoriaMapper(new ModelMapper());
+        categoriaService = new CategoriaServiceImpl(categoriaRepository, categoriaMapper, detalleCotizacionRepository);
+    }
+
+    private Categoria categoriaConId(int id, String nombre) {
+        Categoria categoria = new Categoria();
+        categoria.setId(id);
+        categoria.setNombre(nombre);
+        return categoria;
+    }
+
+    @Test
+    void findAll_conCategoriasExistentes_devuelveListaMapeada() {
+        given(categoriaRepository.findAll()).willReturn(List.of(
+                categoriaConId(1, "Hoteles"),
+                categoriaConId(2, "Vuelos")));
+
+        List<CategoriaResponseDto> resultado = categoriaService.findAll();
+
+        assertThat(resultado)
+                .extracting(CategoriaResponseDto::getNombre)
+                .containsExactly("Hoteles", "Vuelos");
+    }
+
+    @Test
+    void findById_conIdExistente_devuelveCategoriaMapeada() {
+        given(categoriaRepository.findById(1)).willReturn(Optional.of(categoriaConId(1, "Hoteles")));
+
+        CategoriaResponseDto resultado = categoriaService.findById(1);
+
+        assertThat(resultado.getId()).isEqualTo(1);
+        assertThat(resultado.getNombre()).isEqualTo("Hoteles");
+    }
+
+    @Test
+    void findById_conIdInexistente_lanzaResourceNotFoundException() {
+        given(categoriaRepository.findById(99)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> categoriaService.findById(99))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void create_conNombreUnico_guardaYDevuelveCategoriaMapeada() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsByNombreIgnoreCase("Hoteles")).willReturn(false);
+        given(categoriaRepository.save(any(Categoria.class))).willReturn(categoriaConId(1, "Hoteles"));
+
+        CategoriaResponseDto resultado = categoriaService.create(request);
+
+        assertThat(resultado.getId()).isEqualTo(1);
+        assertThat(resultado.getNombre()).isEqualTo("Hoteles");
+    }
+
+    @Test
+    void create_conNombreDuplicado_lanzaDataIntegrityViolationException() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsByNombreIgnoreCase("Hoteles")).willReturn(true);
+
+        assertThatThrownBy(() -> categoriaService.create(request))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(categoriaRepository, never()).save(any());
+    }
+
+    @Test
+    void patch_conIdInexistente_lanzaResourceNotFoundException() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> categoriaService.patch(99, request))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void patch_conNombreYaUsadoPorOtraCategoria_lanzaDataIntegrityViolationException() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Vuelos");
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(categoriaRepository.existsByNombreIgnoreCase("Vuelos")).willReturn(true);
+        given(categoriaRepository.findById(1)).willReturn(Optional.of(categoriaConId(1, "Hoteles")));
+
+        assertThatThrownBy(() -> categoriaService.patch(1, request))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(categoriaRepository, never()).save(any());
+    }
+
+    @Test
+    void patch_conNombreSinCambios_actualizaCorrectamente() {
+        CategoriaRequestDto request = new CategoriaRequestDto();
+        request.setNombre("Hoteles");
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(categoriaRepository.existsByNombreIgnoreCase("Hoteles")).willReturn(true);
+        given(categoriaRepository.findById(1)).willReturn(Optional.of(categoriaConId(1, "Hoteles")));
+        given(categoriaRepository.save(any(Categoria.class))).willReturn(categoriaConId(1, "Hoteles"));
+
+        CategoriaResponseDto resultado = categoriaService.patch(1, request);
+
+        assertThat(resultado.getNombre()).isEqualTo("Hoteles");
+    }
+
+    @Test
+    void delete_conIdInexistente_lanzaResourceNotFoundException() {
+        given(categoriaRepository.existsById(99)).willReturn(false);
+
+        assertThatThrownBy(() -> categoriaService.delete(99))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(categoriaRepository, never()).deleteById(anyInt());
+    }
+
+    @Test
+    void delete_conDetallesDeCotizacionAsociados_lanzaConflictException() {
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByCategoriaId(1)).willReturn(3L);
+
+        assertThatThrownBy(() -> categoriaService.delete(1))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("3 detalle(s)");
+
+        verify(categoriaRepository, never()).deleteById(anyInt());
+    }
+
+    @Test
+    void delete_sinDetallesAsociados_eliminaLaCategoria() {
+        given(categoriaRepository.existsById(1)).willReturn(true);
+        given(detalleCotizacionRepository.countByCategoriaId(1)).willReturn(0L);
+
+        categoriaService.delete(1);
+
+        verify(categoriaRepository, times(1)).deleteById(1);
+    }
+}

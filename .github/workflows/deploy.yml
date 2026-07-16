@@ -8,6 +8,10 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: terraform-${{ inputs.environment }}
+  cancel-in-progress: false
+
 permissions:
   id-token: write
   contents: read
