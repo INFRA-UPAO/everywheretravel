@@ -215,7 +215,7 @@ module "compute" {
   sqs_queue_url          = module.sqs.sqs_queue_url
   s3_docs_bucket         = module.s3.s3_docs_bucket
   rds_secret_arn         = module.secrets.rds_secret_arn
-  rds_proxy_endpoint     = local.is_prod ? module.rds_proxy.proxy_endpoint : module.database.rds_address
+  rds_proxy_endpoint     = coalesce(module.rds_proxy.proxy_endpoint, module.database.rds_address)
   kms_logs_arn           = module.kms.kms_logs_arn
   environment            = local.env
   cognito_user_pool_id   = module.auth.cognito_user_pool_id
