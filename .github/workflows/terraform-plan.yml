@@ -56,6 +56,7 @@ jobs:
         id: plan
         working-directory: iac
         run: |
+          set -o pipefail
           terraform plan -input=false -var-file=tfvars/dev.tfvars -no-color \
             2>&1 | tee /tmp/plan-output.txt
         continue-on-error: true
