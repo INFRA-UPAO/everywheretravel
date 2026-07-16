@@ -73,14 +73,11 @@ resource "aws_ecs_task_definition" "monolito" {
         { name = "S3_DOCS_BUCKET", value = var.s3_docs_bucket },
         { name = "SERVER_PORT", value = tostring(var.ecs_app_port) },
         { name = "COGNITO_ISSUER_URI", value = "https://cognito-idp.${local.region}.amazonaws.com/${var.cognito_user_pool_id}" },
-        { name = "COGNITO_USER_POOL_ID", value = var.cognito_user_pool_id }
+        { name = "COGNITO_USER_POOL_ID", value = var.cognito_user_pool_id },
+        { name = "DB_HOST", value = var.rds_proxy_endpoint }
       ]
 
       secrets = [
-        {
-          name      = "DB_HOST"
-          valueFrom = "${var.rds_secret_arn}:host::"
-        },
         {
           name      = "DB_PORT"
           valueFrom = "${var.rds_secret_arn}:port::"

@@ -94,6 +94,11 @@ variable "rds_secret_arn" {
   type        = string
 }
 
+variable "rds_proxy_endpoint" {
+  description = "Host de conexion a la base de datos: RDS Proxy en prod, endpoint directo de RDS en dev"
+  type        = string
+}
+
 variable "kms_logs_arn" {
   description = "ARN de la llave KMS para CloudWatch Logs"
   type        = string
