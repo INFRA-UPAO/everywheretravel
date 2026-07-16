@@ -14,7 +14,7 @@ locals {
       nat_gateway_count = 1
     }
     prod = {
-      db_instance_class = "db.r6g.large"
+      db_instance_class = "db.r6g.xlarge"
       db_multi_az       = true
       ecs_cpu           = 1024
       ecs_memory        = 2048
