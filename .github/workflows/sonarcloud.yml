@@ -25,11 +25,11 @@ jobs:
           java-version: "21"
           cache: maven
 
-      - name: Compile backend (bytecode requerido por el analizador de Java)
+      - name: Compile backend (bytecode y dependencias para el analizador de Java)
         working-directory: apps/backend
         run: |
           chmod +x mvnw
-          ./mvnw -B -DskipTests compile
+          ./mvnw -B -DskipTests compile dependency:copy-dependencies -DoutputDirectory=target/dependency
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@v6
