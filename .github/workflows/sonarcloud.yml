@@ -3,9 +3,9 @@ name: SonarCloud Analysis
 on:
   push:
     branches: [main]
-    paths: ["iac/**", "apps/**"]
+    paths: ["apps/**"]
   pull_request:
-    paths: ["iac/**", "apps/**"]
+    paths: ["apps/**"]
   workflow_dispatch:
 
 jobs:
