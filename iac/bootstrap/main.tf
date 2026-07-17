@@ -139,6 +139,7 @@ resource "aws_iam_role" "plan" {
 data "aws_iam_policy_document" "plan_permissions" {
   #checkov:skip=CKV_AWS_108:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
   #checkov:skip=CKV_AWS_356:Rol de solo lectura (Describe/Get/List); la mayoria de esas acciones no admite Resource a nivel de ARN
+  #checkov:skip=CKV_AWS_111:kms:Decrypt esta clasificado como "Write" por AWS aunque es de solo lectura; necesario para que terraform plan pueda refrescar aws_secretsmanager_secret_version (decision revisada y aprobada)
   statement {
     sid    = "ReadOnlyForPlan"
     effect = "Allow"
@@ -148,12 +149,19 @@ data "aws_iam_policy_document" "plan_permissions" {
       "ecs:List*",
       "ecr:Describe*",
       "ecr:GetAuthorizationToken",
+      "ecr:ListTagsForResource",
+      "ecr:GetRepositoryPolicy",
+      "ecr:GetLifecyclePolicy",
+      "elasticloadbalancing:Describe*",
       "rds:Describe*",
       "rds:ListTagsForResource",
       "lambda:Get*",
       "lambda:List*",
       "s3:GetBucket*",
       "s3:GetAccelerateConfiguration",
+      "s3:GetLifecycleConfiguration",
+      "s3:GetReplicationConfiguration",
+      "s3:GetEncryptionConfiguration",
       "s3:ListBucket",
       "s3:ListAllMyBuckets",
       "s3:GetObject",
@@ -173,18 +181,29 @@ data "aws_iam_policy_document" "plan_permissions" {
       "kms:List*",
       "kms:GetKeyPolicy",
       "kms:GetKeyRotationStatus",
+      "kms:Decrypt",
       "cloudformation:Describe*",
       "iam:Get*",
       "iam:List*",
       "backup:Describe*",
       "backup:List*",
+      "backup:Get*",
       "wafv2:Get*",
       "wafv2:List*",
       "acm:Describe*",
       "acm:List*",
       "logs:Describe*",
+      "logs:ListTagsForResource",
       "cloudwatch:Describe*",
       "cloudwatch:List*",
+      "cloudwatch:Get*",
+      "application-autoscaling:Describe*",
+      "application-autoscaling:List*",
+      "secretsmanager:Describe*",
+      "secretsmanager:List*",
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:GetSecretValue",
+      "serverlessrepo:Get*",
       "sts:GetCallerIdentity",
     ]
     resources = ["*"]
